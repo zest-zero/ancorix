@@ -1,0 +1,33 @@
+[package]
+name = "ancorix_draw"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ancorix's immediate-mode draw queue and 2D primitives."
+license.workspace = true
+repository.workspace = true
+
+[features]
+# `SpriteAnimation` is a frame-playback clock, not drawing - opt in until
+# a real game in this repo needs it more than once.
+sprite_animation = []
+
+# Custom shaders. Unstable: `Draw::with_shader` currently only re-pipelines
+# solid geometry, see its doc comment.
+unstable_shaders = ["dep:ancorix_shader", "dep:bytemuck"]
+
+[dependencies]
+ancorix_math = { workspace = true }
+ancorix_color = { workspace = true }
+ancorix_asset = { workspace = true }
+ancorix_ash = { workspace = true }
+ancorix_text = { workspace = true }
+ancorix_shader = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "draw_bench"
+harness = false

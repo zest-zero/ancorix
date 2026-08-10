@@ -1,0 +1,115 @@
+[package]
+name = "ancorix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Lightweight immediate-mode 2D graphics framework for Rust, on Vulkan."
+license.workspace = true
+repository.workspace = true
+
+[workspace]
+resolver = "3"
+
+members = [
+    "crates/ancorix_ctx",
+    "crates/ancorix_math",
+    "crates/ancorix_color",
+    "crates/ancorix_window",
+    "crates/ancorix_input",
+    "crates/ancorix_render",
+    "crates/ancorix_shader",
+    "crates/ancorix_ash",
+    "crates/ancorix_asset",
+    "crates/ancorix_image",
+    "crates/ancorix_winit",
+    "crates/ancorix_draw",
+    "crates/ancorix_build",
+    "crates/ancorix_axb",
+    "crates/ancorix_text",
+    "crates/ancorix_slang",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+repository = "https://github.com/zest-zero/ancorix"
+
+[workspace.dependencies]
+
+# Internal crates
+
+ancorix_ctx = { path = "crates/ancorix_ctx" }
+ancorix_math = { path = "crates/ancorix_math" }
+ancorix_color = { path = "crates/ancorix_color" }
+ancorix_window = { path = "crates/ancorix_window" }
+ancorix_input = { path = "crates/ancorix_input" }
+ancorix_render = { path = "crates/ancorix_render" }
+ancorix_shader = { path = "crates/ancorix_shader" }
+ancorix_slang = { path = "crates/ancorix_slang" }
+ancorix_ash = { path = "crates/ancorix_ash" }
+ancorix_asset = { path = "crates/ancorix_asset" }
+ancorix_image = { path = "crates/ancorix_image" }
+ancorix_winit = { path = "crates/ancorix_winit" }
+ancorix_draw = { path = "crates/ancorix_draw" }
+ancorix_text = { path = "crates/ancorix_text" }
+ancorix_build = { path = "crates/ancorix_build" }
+ancorix_axb = { path = "crates/ancorix_axb" }
+
+# External crates
+
+ash = "0.38"
+ash-window = "0.13"
+winit = "0.30"
+raw-window-handle = "0.6"
+bytemuck = { version = "1.24", features = ["derive"] }
+serde_json = "1.0"
+json5 = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+fontdue = "0.9"
+
+# Dev-dependencies (benches/tests only, never in a released binary)
+criterion = "0.8.2"
+rustc-hash = "2"
+glam = "0.33.1"
+
+[features]
+# Opt-in frame-playback clock for sprite sheets
+sprite_animation = ["ancorix_draw/sprite_animation"]
+
+# TTF/OTF font loading.
+ttf = ["ancorix_ctx/ttf"]
+
+# Custom shaders
+unstable_shaders = [
+    "dep:ancorix_shader",
+    "ancorix_ctx/unstable_shaders",
+    "ancorix_draw/unstable_shaders",
+    "ancorix_window/unstable_shaders",
+]
+
+[[example]]
+name = "01_rect"
+
+[profile.dist]
+inherits = "release"
+strip = "symbols"
+
+[dependencies]
+ancorix_ash = { workspace = true }
+ancorix_asset = { workspace = true }
+ancorix_ctx = { workspace = true }
+ancorix_input = { workspace = true }
+ancorix_window = { workspace = true }
+ancorix_draw = { workspace = true }
+ancorix_color = { workspace = true }
+ancorix_math = { workspace = true }
+ancorix_text = { workspace = true }
+ancorix_shader = { workspace = true, optional = true }
+
+[dev-dependencies]
+bytemuck = { workspace = true }
+
+[build-dependencies]
+ancorix_build = { workspace = true }

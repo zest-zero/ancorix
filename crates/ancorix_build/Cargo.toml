@@ -1,0 +1,16 @@
+[package]
+name = "ancorix_build"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Compiles Ancorix project files into the binary sections the engine reads."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ancorix_axb = { workspace = true }
+serde_json = { workspace = true }
+json5 = { workspace = true }
+
+[dev-dependencies]
+ancorix_input = { workspace = true }

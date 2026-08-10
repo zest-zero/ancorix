@@ -1,0 +1,10 @@
+[package]
+name = "ancorix_slang"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ancorix's shader library for the Slang language, and where to find it."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

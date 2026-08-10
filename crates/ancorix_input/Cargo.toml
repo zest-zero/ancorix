@@ -1,0 +1,20 @@
+[package]
+name = "ancorix_input"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Keyboard, mouse and named actions for Ancorix, with no windowing backend in sight."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ancorix_math = { workspace = true }
+ancorix_axb = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "input_bench"
+harness = false

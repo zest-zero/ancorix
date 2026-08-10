@@ -1,0 +1,19 @@
+[package]
+name = "ancorix_math"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Vectors and matrices for Ancorix."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# -
+
+[dev-dependencies]
+glam = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "vector2_bench"
+harness = false

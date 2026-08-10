@@ -1,0 +1,28 @@
+[package]
+name = "ancorix_text"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Font rasterising, glyph atlases and text layout for Ancorix."
+license.workspace = true
+repository.workspace = true
+
+[features]
+# TTF/OTF rasterization. Off by default: a project that only needs the
+# built-in bitmap font shouldn't pay to compile a font parser.
+ttf = ["dep:fontdue"]
+
+[dependencies]
+ancorix_math = { workspace = true }
+ancorix_asset = { workspace = true }
+ancorix_ash = { workspace = true }
+rustc-hash = { workspace = true }
+fontdue = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rustc-hash = { workspace = true }
+
+[[bench]]
+name = "text_bench"
+harness = false

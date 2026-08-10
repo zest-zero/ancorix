@@ -1,0 +1,13 @@
+[package]
+name = "ancorix_ash"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ancorix's Vulkan layer: device, swapchain, pipelines, command recording."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ash = { workspace = true }
+ash-window.workspace = true
+raw-window-handle.workspace = true

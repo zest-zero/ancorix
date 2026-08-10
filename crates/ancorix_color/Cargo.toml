@@ -1,0 +1,18 @@
+[package]
+name = "ancorix_color"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Rgba and colour helpers for Ancorix."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ancorix_math = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "rgba_bench"
+harness = false

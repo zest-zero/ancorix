@@ -1,0 +1,17 @@
+[package]
+name = "ancorix_axb"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ancorix's binary config format: reader, writer, sections."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "axb_bench"
+harness = false

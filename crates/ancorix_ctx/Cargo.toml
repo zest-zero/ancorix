@@ -1,0 +1,22 @@
+[package]
+name = "ancorix_ctx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "The per-frame context Ancorix hands to a game: input, time, window, drawing, assets."
+license.workspace = true
+repository.workspace = true
+
+[features]
+ttf = ["ancorix_text/ttf"]
+unstable_shaders = ["dep:ancorix_shader", "ancorix_draw/unstable_shaders"]
+
+[dependencies]
+ancorix_input = { workspace = true }
+ancorix_draw = { workspace = true }
+ancorix_math = { workspace = true }
+ancorix_asset = { workspace = true }
+ancorix_image = { workspace = true }
+ancorix_ash = { workspace = true }
+ancorix_text = { workspace = true }
+ancorix_shader = { workspace = true, optional = true }

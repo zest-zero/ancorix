@@ -1,0 +1,10 @@
+[package]
+name = "ancorix_asset"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Typed handles and a registry for Ancorix resources."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

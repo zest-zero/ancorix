@@ -1,0 +1,22 @@
+#!/bin/sh
+# Runs what CI runs, before the push leaves the machine. Enable it with:
+#
+#     git config core.hooksPath .githooks
+#
+# Skip it once with `git push --no-verify`.
+
+set -e
+
+echo "pre-push: cargo fmt --all --check"
+cargo fmt --all --check
+
+echo "pre-push: cargo clippy --workspace --all-features"
+cargo clippy --workspace --all-features -- -D warnings
+
+echo "pre-push: cargo test --workspace --all-features"
+cargo test --workspace --all-features
+
+echo "pre-push: cargo doc --workspace --all-features --no-deps"
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
+
+echo "pre-push: ok"

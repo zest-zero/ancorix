@@ -1,0 +1,10 @@
+[package]
+name = "ancorix_shader"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Compiled SPIR-V shaders for Ancorix."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

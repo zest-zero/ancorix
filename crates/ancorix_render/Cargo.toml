@@ -1,0 +1,32 @@
+[package]
+name = "ancorix_render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Batches Ancorix's draw commands into Vulkan draw calls."
+license.workspace = true
+repository.workspace = true
+
+[features]
+unstable_shaders = ["dep:ancorix_shader", "ancorix_draw/unstable_shaders"]
+
+[dependencies]
+ancorix_ash = { workspace = true }
+ancorix_asset = { workspace = true }
+ancorix_draw = { workspace = true }
+ancorix_shader = { workspace = true, optional = true }
+ancorix_math = { workspace = true }
+ancorix_color = { workspace = true }
+ash = { workspace = true }
+bytemuck = { workspace = true }
+rustc-hash = { workspace = true }
+
+[build-dependencies]
+ancorix_slang = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "triangulate_bench"
+harness = false
