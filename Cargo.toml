@@ -89,9 +89,6 @@ unstable_shaders = [
     "ancorix_window/unstable_shaders",
 ]
 
-[[example]]
-name = "01_rect"
-
 [profile.dist]
 inherits = "release"
 strip = "symbols"
