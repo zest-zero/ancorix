@@ -1,9 +1,7 @@
 pub mod lerp;
-pub mod matrix2;
 pub mod vector2;
 
 pub use lerp::Lerp;
-pub use matrix2::Matrix2;
 pub use vector2::Vector2;
 
 /// The tolerance used when comparing floats, e.g. by
