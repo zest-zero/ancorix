@@ -30,10 +30,10 @@ impl App for Demo {
             self.pos.y += step;
         }
 
-        ctx.draw.clear(rgba!("#1e1e1e"));
+        ctx.draw.clear(Rgba::WHITE);
 
         let square = Rect::from_center(self.pos, v2!(90.0));
-        ctx.draw.rect(square, Rgba::CYAN);
+        ctx.draw.rect(square, rgba!("#34d399"));
     }
 }
 
