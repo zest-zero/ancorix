@@ -3,6 +3,7 @@ use ancorix::prelude::*;
 struct Demo {
     pos: Vector2,
     speed: f32,
+    font: Font,
 }
 
 impl App for Demo {
@@ -14,7 +15,8 @@ impl App for Demo {
 
         Self {
             pos: ctx.window.size() / 2.0,
-            speed: 500.0,
+            speed: 400.0,
+            font: ctx.assets.builtin_font(2),
         }
     }
 
@@ -22,14 +24,16 @@ impl App for Demo {
         let dir = ctx.input.action_vector("left", "right", "up", "down");
         self.pos += dir * self.speed * ctx.time.dt();
 
-        ctx.draw.clear(rgba!("#1e1e1e"));
+        ctx.draw.clear(Rgba::WHITE);
 
-        ctx.draw.circle(
-            Circle {
-                pos: self.pos,
-                radius: 40.0,
-            },
-            Rgba::PURPLE,
+        let shape = Circle::new(self.pos, 40.0);
+        ctx.draw.circle(shape, rgba!("#a855f7"));
+
+        ctx.draw.text(
+            &self.font,
+            "controls: wasd | arrows",
+            v2!(20.0, 20.0),
+            Rgba::BLACK,
         );
     }
 }
