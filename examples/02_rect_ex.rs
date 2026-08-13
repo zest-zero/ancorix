@@ -1,34 +1,35 @@
 use ancorix::prelude::*;
 
-struct Demo {
-    center: Vector2,
-}
+struct Demo;
 
 impl App for Demo {
-    fn init(ctx: &mut Ctx) -> Self {
-        Self {
-            center: ctx.window.size() / 2.0,
-        }
+    fn init(_ctx: &mut Ctx) -> Self {
+        Self
     }
 
     fn frame(&mut self, ctx: &mut Ctx) {
         let t = ctx.time.elapsed();
-        let breath = 1.0 + (t * 2.0).sin() * 0.3;
+        let center = ctx.window.size() / 2.0;
 
-        ctx.draw.clear(rgba!("#1e1e1e"));
+        let spin = Transform2D {
+            rotation: t,
+            origin: v2!(0.5),
+            scale: v2!(1.0 + 0.15 * (t * 3.0).sin()),
+        };
+
+        ctx.draw.clear(Rgba::WHITE);
 
         ctx.draw.rect_ex(
-            Rect::from_center(self.center, v2!(220.0)),
-            Transform2D {
-                rotation: t,
-                origin: v2!(0.5),
-                scale: v2!(breath),
-            },
-            Rgba::CYAN,
+            Rect::from_center(center, v2!(220.0)),
+            spin,
+            rgba!("#f38ba8"),
         );
+
+        // pivot indicator
+        ctx.draw.circle(Circle::new(center, 6.0), Rgba::BLACK);
     }
 }
 
 fn main() {
-    Window::new("Ancorix: transforms", 1280, 720).run::<Demo>();
+    Window::new("Ancorix: 02 rect ex", 1280, 720).run::<Demo>();
 }
