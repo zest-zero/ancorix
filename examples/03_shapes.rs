@@ -22,7 +22,7 @@ impl App for Demo {
         let up = self.first - v2!(0.0, ROW);
         let down = self.first + v2!(0.0, ROW);
 
-        ctx.draw.clear(rgba!("#1e1e1e"));
+        ctx.draw.clear(Rgba::WHITE);
 
         // rect
         let square = Rect::from_center(up, v2!(SIZE));
