@@ -1,26 +1,17 @@
 use ancorix::prelude::*;
 
-struct Demo {
-    pos: Vector2,
-}
+struct Demo;
 
 impl App for Demo {
-    fn init(ctx: &mut Ctx) -> Self {
-        Self {
-            pos: ctx.window.size() / 2.0,
-        }
+    fn init(_ctx: &mut Ctx) -> Self {
+        Self
     }
 
     fn frame(&mut self, ctx: &mut Ctx) {
         ctx.draw.clear(Rgba::WHITE);
 
-        ctx.draw.rect(
-            Rect {
-                pos: self.pos - 100.0,
-                size: v2!(200.0),
-            },
-            Rgba::CYAN,
-        );
+        let shape = Rect::from_center(ctx.window.size() / 2.0, v2!(200.0));
+        ctx.draw.rect(shape, Rgba::CYAN);
     }
 }
 
