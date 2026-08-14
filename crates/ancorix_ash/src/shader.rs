@@ -27,8 +27,10 @@ impl Shader {
         // than reinterpreting the byte slice's pointer as `*const u32`,
         // which would be UB on unaligned input and wrong on big-endian.
         let words: Vec<u32> = code
-            .chunks_exact(4)
-            .map(|word| u32::from_le_bytes(word.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|&word| u32::from_le_bytes(word))
             .collect();
 
         let create_info = vk::ShaderModuleCreateInfo::default().code(&words);
