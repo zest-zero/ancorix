@@ -1,6 +1,9 @@
 // The shape system: one interface, and every operation for free on anything
 // that implements it - including shapes you write yourself.
 
+import color;
+import surface;
+
 /// Coverage of a pixel by a shape whose signed distance is `dist`.
 ///
 /// `fwidth` is how much `dist` changes between neighbouring pixels, so the
@@ -98,6 +101,14 @@ public extension<S : IShape> S {
     ///     shape.at(float2(8.0, 8.0)).soften(p, 12.0)  // shadow
     public float soften(float2 p, float radius) {
         return 1.0 - smoothstep(-radius, radius, distance(p));
+    }
+
+    /// Fills the shape with `color`, faded to nothing outside its edge - the
+    /// line nearly every shader ends with:
+    ///
+    ///     shape.paint(s, s.color)
+    public float4 paint(Surface s, float4 color) {
+        return color.fade(this.coverage(s.local));
     }
 
     /// The shape with `hole` taken out of it.
