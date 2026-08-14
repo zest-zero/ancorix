@@ -1,6 +1,7 @@
 pub mod app;
 pub mod assets;
 pub mod ctx;
+mod decode;
 pub mod interpolated;
 pub mod monitor_info;
 pub mod time;

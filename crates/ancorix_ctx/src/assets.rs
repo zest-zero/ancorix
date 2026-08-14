@@ -83,7 +83,7 @@ impl<'a> Assets<'a> {
     ///
     /// * [`Assets::texture()`]
     pub fn texture_ex(&mut self, bytes: &[u8], filter: TextureFilter) -> Handle<Texture> {
-        let decoded = ancorix_image::decode(bytes).expect("failed to decode image");
+        let decoded = crate::decode::decode(bytes).expect("failed to decode image");
         let texture = Texture::new(
             self.instance,
             self.device,

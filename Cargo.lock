@@ -124,11 +124,11 @@ dependencies = [
  "ancorix_ash",
  "ancorix_asset",
  "ancorix_draw",
- "ancorix_image",
  "ancorix_input",
  "ancorix_math",
  "ancorix_shader",
  "ancorix_text",
+ "image",
 ]
 
 [[package]]
@@ -143,13 +143,6 @@ dependencies = [
  "ancorix_text",
  "bytemuck",
  "criterion",
-]
-
-[[package]]
-name = "ancorix_image"
-version = "0.1.0"
-dependencies = [
- "image",
 ]
 
 [[package]]

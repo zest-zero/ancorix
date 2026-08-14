@@ -16,7 +16,7 @@ ancorix_input = { workspace = true }
 ancorix_draw = { workspace = true }
 ancorix_math = { workspace = true }
 ancorix_asset = { workspace = true }
-ancorix_image = { workspace = true }
 ancorix_ash = { workspace = true }
 ancorix_text = { workspace = true }
 ancorix_shader = { workspace = true, optional = true }
+image = { workspace = true }

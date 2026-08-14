@@ -44,7 +44,6 @@ The minimum supported Rust version is 1.90, checked by its own CI job.
 | `ancorix_math` | vectors and matrices |
 | `ancorix_color` | `Rgba` |
 | `ancorix_text` | fonts, glyph atlases, layout |
-| `ancorix_image` | PNG and JPEG, pure Rust |
 | `ancorix_asset` | handles and registries |
 | `ancorix_shader` | compiled SPIR-V |
 | `ancorix_slang` | the shader library, and where to find it |

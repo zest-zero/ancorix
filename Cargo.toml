@@ -20,7 +20,6 @@ members = [
     "crates/ancorix_shader",
     "crates/ancorix_ash",
     "crates/ancorix_asset",
-    "crates/ancorix_image",
     "crates/ancorix_winit",
     "crates/ancorix_draw",
     "crates/ancorix_build",
@@ -50,7 +49,6 @@ ancorix_shader = { path = "crates/ancorix_shader" }
 ancorix_slang = { path = "crates/ancorix_slang" }
 ancorix_ash = { path = "crates/ancorix_ash" }
 ancorix_asset = { path = "crates/ancorix_asset" }
-ancorix_image = { path = "crates/ancorix_image" }
 ancorix_winit = { path = "crates/ancorix_winit" }
 ancorix_draw = { path = "crates/ancorix_draw" }
 ancorix_text = { path = "crates/ancorix_text" }
@@ -88,6 +86,9 @@ unstable_shaders = [
     "ancorix_draw/unstable_shaders",
     "ancorix_window/unstable_shaders",
 ]
+
+[examples]
+test = { "features_required" = ["unstable_shaders"] }
 
 [profile.dist]
 inherits = "release"
