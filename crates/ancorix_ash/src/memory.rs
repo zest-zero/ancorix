@@ -10,6 +10,7 @@ pub struct Buffer {
     memory: vk::DeviceMemory,
     size: vk::DeviceSize,
     device: ash::Device,
+    mapped: *mut u8,
 }
 
 impl Buffer {
@@ -54,11 +55,22 @@ impl Buffer {
         unsafe { device.raw().bind_buffer_memory(raw, memory, 0) }
             .expect("failed to bind buffer memory");
 
+        // SAFETY: `memory` was just allocated and bound to `raw` above, and
+        // is never mapped anywhere else - `size` bytes, offset 0.
+        let mapped = unsafe {
+            device
+                .raw()
+                .map_memory(memory, 0, size, vk::MemoryMapFlags::empty())
+        }
+        .expect("failed to map buffer memory - does it include HOST_VISIBLE?")
+            as *mut u8;
+
         Self {
             raw,
             memory,
             size,
             device: device.raw().clone(),
+            mapped,
         }
     }
 
@@ -79,7 +91,7 @@ impl Buffer {
     ///
     /// # Panics
     ///
-    /// Panics if `data` is larger than the buffer, or if mapping fails.
+    /// Panics if `data` is larger than the buffer.
     pub fn write(&self, data: &[u8]) {
         assert!(
             data.len() as vk::DeviceSize <= self.size,
@@ -88,20 +100,12 @@ impl Buffer {
             self.size
         );
 
-        // SAFETY: `memory` belongs to `device` and isn't mapped elsewhere -
-        // this type never keeps a persistent mapping.
-        let ptr = unsafe {
-            self.device
-                .map_memory(self.memory, 0, self.size, vk::MemoryMapFlags::empty())
-        }
-        .expect("failed to map buffer memory");
-
-        // SAFETY: `ptr` is valid for `self.size` bytes (just mapped above),
-        // and `data.len() <= self.size` was checked above.
-        unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.cast(), data.len()) };
-
-        // SAFETY: `memory` was mapped by the call above.
-        unsafe { self.device.unmap_memory(self.memory) };
+        // SAFETY: `mapped` is valid for `self.size` bytes for the whole
+        // lifetime of `self` (mapped once in `new`), and `data.len() <=
+        // self.size` was just checked above. `HOST_COHERENT` means no
+        // explicit flush is needed for the write to become visible to the
+        // device.
+        unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), self.mapped, data.len()) };
     }
 
     // `pub(crate)`, not private - `Texture::create_image` (texture.rs)
