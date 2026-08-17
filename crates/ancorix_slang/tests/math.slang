@@ -152,6 +152,18 @@ export __extern_cpp int main() {
     }
     CHECK(true, "fbm stays in 0..1");
 
+    // voronoi: the nearest seed is never farther than the second-nearest,
+    // and the winning cell is always one of the nine searched
+    let v = voronoi(float2(3.3, -1.7));
+    CHECK(v.f1 <= v.f2, "voronoi orders f1 before f2");
+    CHECK(v.f1 >= 0.0, "voronoi distance is never negative");
+    CHECK(abs(v.id.x - floor(3.3)) <= 1.0 && abs(v.id.y - floor(-1.7)) <= 1.0,
+          "voronoi picks a neighbouring cell");
+    let v2 = voronoi(float2(3.3, -1.7));
+    CHECK(v.id.x == v2.id.x && v.id.y == v2.id.y, "voronoi is repeatable");
+    CHECK(voronoi(float2(0.2, 0.2)).id.x != voronoi(float2(9.2, 9.2)).id.x,
+          "voronoi separates distant points");
+
     printf(failures == 0 ? "\nall passed\n" : "\n%d FAILED\n", failures);
     return failures == 0 ? 0 : 1;
 }
