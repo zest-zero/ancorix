@@ -8,7 +8,7 @@ import ancorix;
 
 float4 pixel(Surface s) {
     let ring = Circle(s.size.x * 0.4).subtract(Circle(s.size.x * 0.2));
-    return s.color.fade(ring.coverage(s.local));
+    return ring.paint(s, s.color);
 }
 ```
 
@@ -17,8 +17,8 @@ let donut = ctx.assets.shader(include_bytes!("../assets/shaders/donut.frag.spv")
 ctx.draw.shader(donut, Rect::from_center(center, v2!(320.0)), Rgba::CYAN);
 ```
 
-No vertex stage, no varyings, no push constants, no `fwidth`. The rect is the
-canvas the shader paints on; what it paints is up to the shader.
+The engine's vertex stage fills `Surface` and hands it to `pixel` - that
+function is the only thing a shader writes.
 
 ## What a pixel knows
 
@@ -48,10 +48,11 @@ Box(size, corner)         // rounded corners
 Segment(from, to, width)
 ```
 
-Every shape gets these for free, including one you write yourself:
+Every shape gets these, including one you write yourself:
 
 ```slang
 shape.coverage(p)         // 0..1, antialiased - the usual way to finish
+shape.paint(s, color)     // color faded by coverage - what most shaders end with
 shape.glow(p, radius)     // soft halo reaching `radius` pixels out
 shape.outline(width)      // the edge, as a shape
 shape.grow(amount)        // edge pushed out (negative shrinks)
@@ -64,9 +65,9 @@ shape.scale(factor)       // scaled about its own centre
 ```
 
 Transforms are separate operations rather than one `Transform2D`-shaped
-struct, because a shader pays for them per pixel: `.at(v)` costs a subtract,
-while a combined transform would compute a sine for a shape that only moved.
-Composing them also makes the order explicit, and gives a pivot for free:
+struct: a shader pays for them per pixel, so `.at(v)` costs a subtract while
+a combined transform would compute a sine for a shape that only moved.
+Composing them makes the order explicit and gives a pivot for free:
 
 ```slang
 shape.at(-pivot).rotate(angle).at(pivot)
@@ -85,33 +86,55 @@ and `Star(40).outline(3).coverage(s.local)` works immediately.
 
 ## Colour
 
+The names are the same ones `Rgba` uses in Rust, so a colour reads the same
+on both sides:
+
 ```slang
-Color.cyan                // the names `Rgba` uses in Rust
-Color.clear               // nothing at all
-rgb(0x22d3ee)             // as CSS writes it
-rgba(0x22d3ee80)          // with alpha
-color.fade(a)             // scale alpha - how coverage becomes transparency
-color.lighten(t)          // towards white
-color.darken(t)           // towards black
-color.luminance()         // for choosing dark or light text on top
-over(top, bottom)         // straight-alpha compositing
-to_linear(c) / to_srgb(c) // only when a calculation needs light-linear values
+Color.cyan
+Color.purple
+Color.orange
+Color.white
+Color.black
+Color.grey
+Color.clear                // nothing at all
+```
+
+For a colour that isn't in that list, `rgb()` takes a hex literal the way
+CSS writes one - `rgb(0x22d3ee)` is that same cyan:
+
+```slang
+rgb(hex)                   // e.g. rgb(0x22d3ee) for #22d3ee
+rgba(hex)                  // same, with alpha - e.g. rgba(0x22d3ee80)
+```
+
+For plain r/g/b components, skip both and write `float3(r, g, b)` - that's
+native Slang, no function needed.
+
+```slang
+color.fade(a)              // scale alpha - how coverage becomes transparency
+color.lighten(t)           // towards white
+color.darken(t)            // towards black
+color.luminance()          // for choosing dark or light text on top
+over(top, bottom)          // straight-alpha compositing
+to_linear(c) / to_srgb(c)  // only when a calculation needs light-linear values
 ```
 
 ## Noise and easing
 
 ```slang
-hash(p)                   // repeatable 0..1 per coordinate
-value_noise(p)            // smooth
-fbm(p)                    // several octaves - clouds, water, smoke
+hash(p)                    // repeatable 0..1 per coordinate
+value_noise(p)              // smooth
+fbm(p)                      // several octaves - clouds, water, smoke
+voronoi(p)                   // cellular noise - .f1/.f2/.id, cracks and cells
 ```
 
 ```slang
-ease_in_quad / ease_out_quad / ease_in_out_quad
-ease_in_cubic / ease_out_cubic / ease_in_out_cubic
-ease_out_back             // overshoots, then settles
-pulse(t)                  // 0 -> 1 -> 0
-ping_pong(t)              // bounces instead of wrapping, for `s.time`
+deg(degrees)                 // radians, so an angle reads the way it's written
+bezier(t, x1, y1, x2, y2)    // the CSS four-number curve - one function instead of a table of named eases
+bias(t, k)                   // cheap shaping: k above 1 pushes late, below 1 early
+gain(t, k)                   // cheap S-curve: k above 1 steepens the middle
+pulse(t)                     // 0 -> 1 -> 0
+ping_pong(t)                 // bounces instead of wrapping, for `s.time`
 ```
 
 ## Recipes
@@ -120,15 +143,15 @@ ping_pong(t)              // bounces instead of wrapping, for `s.time`
 
 ```slang
 let ring = Circle(s.size.x * 0.4).subtract(Circle(s.size.x * 0.2));
-return s.color.fade(ring.coverage(s.local));
+return ring.paint(s, s.color);
 ```
 
 **A badge with an outline.** Draw the body, then the edge on top:
 
 ```slang
 let body = Circle(s.size.x * 0.35);
-return over(rgb(0xf59e0b).fade(body.outline(4.0).coverage(s.local)),
-            s.color.fade(body.coverage(s.local)));
+return over(Color.orange.fade(body.outline(4.0).coverage(s.local)),
+            body.paint(s, s.color));
 ```
 
 **A pulsing highlight.** `s.time` drives it, `ping_pong` keeps it from
@@ -136,20 +159,30 @@ jumping:
 
 ```slang
 let beat = ping_pong(s.time * 0.5);
-return s.color.lighten(beat * 0.4).fade(Circle(s.size.x * 0.5).coverage(s.local));
+return Circle(s.size.x * 0.5).paint(s, s.color.lighten(beat * 0.4));
 ```
 
 **A vertical gradient:**
 
 ```slang
-return float4(lerp(rgb(0x22d3ee), rgb(0xa855f7), s.uv.y), 1.0);
+return float4(lerp(Color.cyan.rgb, Color.purple.rgb, s.uv.y), 1.0);
 ```
 
 **Clouds:**
 
 ```slang
 let n = fbm(s.uv * 4.0 + s.time * 0.05);
-return float4(lerp(rgb(0x1e293b), rgb(0xe2e8f0), n), 1.0);
+return float4(lerp(Color.black.rgb, Color.white.rgb, n), 1.0);
+```
+
+**Cracked stone.** `f1` shades each cell, `f2 - f1` is the distance to its
+border - zero on it, so `smoothstep` draws mortar there and nowhere else:
+
+```slang
+let v = voronoi(s.uv * 6.0);
+let stone = lerp(Color.grey.rgb, Color.white.rgb, hash(v.id));
+let mortar = smoothstep(0.0, 0.06, v.f2 - v.f1);
+return float4(lerp(Color.black.rgb, stone, mortar), 1.0);
 ```
 
 ## Building a shader
@@ -191,5 +224,8 @@ only part.
 | `shape` | `IShape`, `aa`, and the operations every shape gets |
 | `shapes` | `Circle`, `Box`, `Segment`, and their distance functions |
 | `color` | `rgb`, `over`, fades, sRGB conversions |
-| `ease` | easing curves |
-| `noise` | `hash`, `value_noise`, `fbm` |
+| `ease` | `bezier`, `bias`, `gain`, `pulse`, `ping_pong` |
+| `noise` | `hash`, `value_noise`, `fbm`, `voronoi` |
+| `gradient` | `linear_gradient`, `radial_gradient`, `angular_gradient` |
+| `pattern` | `checker`, `stripes`, `grid`, `dots` |
+| `distort` | `wave`, `ripple`, `swirl`, `turbulence` |
