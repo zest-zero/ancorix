@@ -17,9 +17,8 @@ const BOTH: &[(&str, &str)] = &[("vertexMain", "vert"), ("fragmentMain", "frag")
 // shader, so it has no fragment stage of its own.
 const VERTEX_ONLY: &[(&str, &str)] = &[("vertexMain", "vert")];
 
-const SHADERS: [(&str, &[(&str, &str)]); 5] = [
+const SHADERS: [(&str, &[(&str, &str)]); 4] = [
     ("solid2d", BOTH),
-    ("sdf2d", BOTH),
     ("roundedrect2d", BOTH),
     ("sprite2d", BOTH),
     ("shaded2d", VERTEX_ONLY),

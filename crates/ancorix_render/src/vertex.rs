@@ -34,55 +34,6 @@ impl Vertex {
     ];
 }
 
-/// A single vertex of SDF-rendered geometry (currently: circles).
-// One bounding quad per shape; `sdf2d.frag` computes the analytic edge from
-// `local`, the vertex's offset from the shape's center in pixels.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct SdfVertex {
-    pub pos: [f32; 2],
-    pub color: [u8; 4],
-    pub local: [f32; 2],
-    pub radius: f32,
-}
-
-impl SdfVertex {
-    /// Binding description, for `Pipeline`'s vertex input state.
-    pub const BINDING: vk::VertexInputBindingDescription = vk::VertexInputBindingDescription {
-        binding: 0,
-        stride: size_of::<SdfVertex>() as u32,
-        input_rate: vk::VertexInputRate::VERTEX,
-    };
-
-    /// Attribute descriptions, for `Pipeline`'s vertex input state.
-    pub const ATTRIBUTES: [vk::VertexInputAttributeDescription; 4] = [
-        vk::VertexInputAttributeDescription {
-            location: 0,
-            binding: 0,
-            format: vk::Format::R32G32_SFLOAT,
-            offset: 0,
-        },
-        vk::VertexInputAttributeDescription {
-            location: 1,
-            binding: 0,
-            format: vk::Format::R8G8B8A8_UNORM,
-            offset: size_of::<[f32; 2]>() as u32,
-        },
-        vk::VertexInputAttributeDescription {
-            location: 2,
-            binding: 0,
-            format: vk::Format::R32G32_SFLOAT,
-            offset: (size_of::<[f32; 2]>() + size_of::<[u8; 4]>()) as u32,
-        },
-        vk::VertexInputAttributeDescription {
-            location: 3,
-            binding: 0,
-            format: vk::Format::R32_SFLOAT,
-            offset: (size_of::<[f32; 2]>() * 2 + size_of::<[u8; 4]>()) as u32,
-        },
-    ];
-}
-
 /// A single vertex of a textured quad - `color` multiplies the sampled texel.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]

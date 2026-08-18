@@ -1,6 +1,6 @@
 //! Benchmarks for `ancorix_render::geometry`.
 //!
-//! Four questions, matching what the code actually changed recently:
+//! Five questions, matching what the code actually changed recently:
 //! (1) `triangulate()` throughput on a realistic mixed scene - a baseline
 //!     for the CPU cost of the batching step itself.
 //! (2) how much cheaper the SDF `push_circle` (one quad, 4 vertices,
@@ -9,12 +9,21 @@
 //!     CLAUDE.md open question 24) - `fan_push_circle` below is a
 //!     bench-only reconstruction of it, kept solely as a comparison
 //!     baseline, never compiled into the actual crate.
-//! (3) whether circle should stay on its own dedicated `SdfVertex` (20
-//!     bytes/vertex, current) or merge into the rounded-rect pipeline's
-//!     `RoundedRectVertex` (28 bytes/vertex) as a degenerate rounded rect
-//!     (`half_size == (radius, radius)` makes `sdRoundedBox` reduce
-//!     exactly to `sdCircle`) - `unified_push_circle` below is the
-//!     bench-only reconstruction of that merged path, never wired in.
+//! (3a) whether circle should stay on its own dedicated `SdfVertex` (current
+//!     at the time, since removed) or merge into the rounded-rect pipeline's
+//!     per-*vertex* format as a degenerate rounded rect (`half_size ==
+//!     (radius, radius)` makes `sdRoundedBox` reduce exactly to `sdCircle`)
+//!     - `RoundedRectVertex`/`unified_push_circle` below reconstruct that
+//!     path, never wired in: it lost to `SdfVertex` on bytes alone (28 vs 20
+//!     per vertex) without even touching instancing, so it settled nothing
+//!     about (3b).
+//! (3b) the question (3a) didn't ask: dedicated `SdfVertex` against the
+//!     rounded-rect pipeline's *real*, already-instanced `RoundedRectInstance`
+//!     - one record per shape, no index buffer, GPU derives the quad from
+//!     `gl_VertexIndex`. This one *was* wired in - `SdfVertex` is now a
+//!     bench-only reconstruction (below), `sdf_push_circle` its comparison
+//!     baseline, and `push_circle_as_rounded_rect` the path the crate uses
+//!     now (see `crates/ancorix_render/src/geometry.rs::push_circle`).
 //! (5) whether the renderer's per-`Handle` caches are worth keying with
 //!     `FxHashMap` instead of the std one - the lookup happens once per run
 //!     per frame, and the key is a `u32`, not a hostile string.
@@ -30,10 +39,10 @@ use ancorix_color::Rgba;
 use ancorix_draw::{Circle, DrawCmd, Line, Rect, RoundedRect, Transform2D, Triangle};
 use ancorix_math::Vector2;
 use ancorix_render::geometry::triangulate;
-use ancorix_render::vertex::{RoundedRectInstance, SdfVertex, Vertex};
+use ancorix_render::vertex::{RoundedRectInstance, Vertex};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
-/// The merged vertex format question (3) measures - 28 bytes against
+/// The merged vertex format question (3a) measured - 28 bytes against
 /// `SdfVertex`'s 20. Defined here rather than in the crate: the rounded-rect
 /// pipeline is instanced (`RoundedRectInstance`) and never had a per-vertex
 /// format, so this is a reconstruction of a path the library doesn't have,
@@ -45,6 +54,20 @@ struct RoundedRectVertex {
     color: [u8; 4],
     local: [f32; 2],
     half_size: [f32; 2],
+    radius: f32,
+}
+
+/// The dedicated circle format question (3b) settled - one bounding quad, 4
+/// vertices whatever the radius, an analytic edge from `local` in the
+/// fragment shader. Used to live in `ancorix_render::vertex` as `SdfVertex`;
+/// reconstructed here only as the losing side of that comparison, same
+/// treatment as `fan_push_circle` and `RoundedRectVertex` above.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct SdfVertex {
+    pos: [f32; 2],
+    color: [u8; 4],
+    local: [f32; 2],
     radius: f32,
 }
 
@@ -273,6 +296,81 @@ fn bench_circle_dedicated_vs_unified_vertex(c: &mut Criterion) {
     group.finish();
 }
 
+/// Question (3b)'s winning path - what `push_circle` in
+/// `crates/ancorix_render/src/geometry.rs` actually does: convert to a
+/// `RoundedRect` with `half_size == (radius, radius)` and push a single
+/// `RoundedRectInstance` (mirrored here since the crate's `push_circle` and
+/// `push_rounded_rect` are private, not because the format is).
+fn push_circle_as_rounded_rect(
+    instances: &mut Vec<RoundedRectInstance>,
+    shape: Circle,
+    color: Rgba,
+) {
+    instances.push(RoundedRectInstance {
+        pos: [shape.pos.x - shape.radius, shape.pos.y - shape.radius],
+        size: [shape.radius * 2.0, shape.radius * 2.0],
+        origin: [0.0, 0.0],
+        scale: [1.0, 1.0],
+        radius: shape.radius,
+        rotation: 0.0,
+        color: [color.r, color.g, color.b, color.a],
+    });
+}
+
+/// The comparison question (3a) never made: dedicated `SdfVertex` (4
+/// vertices + 6 indices, ~24 bytes/vertex) against the rounded-rect
+/// pipeline's real, already-instanced format (1 record, no index buffer at
+/// all, 44 bytes total). Decides whether `push_circle`'s merge into
+/// `RoundedRectInstance` was worth doing.
+fn bench_circle_dedicated_vs_instanced_roundedrect(c: &mut Criterion) {
+    let mut group = c.benchmark_group("circle_dedicated_vs_instanced_roundedrect");
+
+    for &count in &[10usize, 100, 1000] {
+        let mut rng = Rng(7);
+        let circles: Vec<Circle> = (0..count)
+            .map(|_| {
+                Circle::new(
+                    Vector2::new(rng.next_f32() * 1920.0, rng.next_f32() * 1080.0),
+                    10.0 + rng.next_f32() * 40.0,
+                )
+            })
+            .collect();
+        let color = Rgba::from_hex("#ff6b6b");
+
+        group.bench_with_input(
+            BenchmarkId::new("dedicated_sdfvertex", count),
+            &circles,
+            |b, circles| {
+                let mut vertices = Vec::new();
+                let mut indices = Vec::new();
+                b.iter(|| {
+                    vertices.clear();
+                    indices.clear();
+                    for &circle in std::hint::black_box(circles) {
+                        sdf_push_circle(&mut vertices, &mut indices, circle, color);
+                    }
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("instanced_roundedrect", count),
+            &circles,
+            |b, circles| {
+                let mut instances = Vec::new();
+                b.iter(|| {
+                    instances.clear();
+                    for &circle in std::hint::black_box(circles) {
+                        push_circle_as_rounded_rect(&mut instances, circle, color);
+                    }
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
 fn bench_circles_fan_vs_sdf(c: &mut Criterion) {
     let mut group = c.benchmark_group("circles_fan_vs_sdf");
 
@@ -353,6 +451,86 @@ fn bench_triangulate_rounded_rects(c: &mut Criterion) {
                 );
             });
         });
+    }
+
+    group.finish();
+}
+
+/// The run-count half of question (3b): circles and rounded rects now share
+/// `RunKind::RoundedRect` (real crate behaviour, not a reconstruction - see
+/// `push_circle` in `geometry.rs`), so alternating them in the queue no
+/// longer breaks a run the way alternating circle/rect used to. `layered`
+/// draws every circle then every rounded rect (already one run each way
+/// before this change); `interleaved` alternates them one at a time - the
+/// case that used to cost one pipeline bind per shape and now costs one for
+/// the whole scene. Each scene prints its run count, same convention as
+/// `bench_grouped_vs_ordered_batching` below.
+fn bench_circle_rounded_rect_interleaving(c: &mut Criterion) {
+    let mut group = c.benchmark_group("circle_rounded_rect_interleaving");
+
+    for &interleaved in &[false, true] {
+        let layout = if interleaved {
+            "interleaved"
+        } else {
+            "layered"
+        };
+
+        for &count in &[100usize, 1000] {
+            let mut rng = Rng(13);
+            let mut kinds: Vec<bool> = (0..count).map(|i| i % 2 == 0).collect();
+            if !interleaved {
+                kinds.sort_unstable();
+            }
+
+            let cmds: Vec<DrawCmd> = kinds
+                .into_iter()
+                .map(|is_circle| {
+                    let pos = Vector2::new(rng.next_f32() * 1920.0, rng.next_f32() * 1080.0);
+                    if is_circle {
+                        DrawCmd::Circle {
+                            shape: Circle::new(pos, 10.0 + rng.next_f32() * 40.0),
+                            transform: Transform2D::IDENTITY,
+                            color: Rgba::from_hex("#ff6b6b"),
+                        }
+                    } else {
+                        DrawCmd::RoundedRect {
+                            shape: RoundedRect::new(
+                                pos,
+                                Vector2::new(
+                                    40.0 + rng.next_f32() * 80.0,
+                                    20.0 + rng.next_f32() * 40.0,
+                                ),
+                                8.0,
+                            ),
+                            transform: Transform2D::IDENTITY,
+                            color: Rgba::from_hex("#31a6ff"),
+                        }
+                    }
+                })
+                .collect();
+
+            let viewport = Vector2::new(1920.0, 1080.0);
+            let textures = Assets::<Texture>::new();
+            let mut geometry = ancorix_render::geometry::Geometry::new();
+
+            triangulate(&cmds, viewport, 0.0, &textures, &mut geometry);
+            eprintln!(
+                "{layout}/{count}: {} pipeline bind(s) for circle+rounded_rect",
+                geometry.runs.len()
+            );
+
+            group.bench_with_input(BenchmarkId::new(layout, count), &cmds, |b, cmds| {
+                b.iter(|| {
+                    triangulate(
+                        std::hint::black_box(cmds),
+                        viewport,
+                        0.0,
+                        &textures,
+                        &mut geometry,
+                    );
+                });
+            });
+        }
     }
 
     group.finish();
@@ -756,6 +934,8 @@ criterion_group!(
     bench_triangulate_rounded_rects,
     bench_circles_fan_vs_sdf,
     bench_circle_dedicated_vs_unified_vertex,
+    bench_circle_dedicated_vs_instanced_roundedrect,
+    bench_circle_rounded_rect_interleaving,
     bench_grouped_vs_ordered_batching,
     bench_cache_lookup
 );

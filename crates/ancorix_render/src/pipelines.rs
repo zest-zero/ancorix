@@ -3,7 +3,7 @@ use ash::vk;
 
 #[cfg(feature = "unstable_shaders")]
 use crate::vertex::ShadedVertex;
-use crate::vertex::{RoundedRectInstance, SdfVertex, SpriteVertex, Vertex};
+use crate::vertex::{RoundedRectInstance, SpriteVertex, Vertex};
 
 // Compiled by `build.rs` from `shaders/` into OUT_DIR - either with
 // glslangValidator, or copied from `shaders/prebuilt` when it isn't
@@ -42,7 +42,6 @@ const PUSH_CONSTANT_RANGES: [vk::PushConstantRange; 1] = [push_constant_range(GL
 // it outlives the pipelines built against it.
 pub(crate) struct Pipelines {
     pub(crate) solid: Pipeline,
-    pub(crate) sdf: Pipeline,
     pub(crate) rounded_rect: Pipeline,
     pub(crate) sprite: Pipeline,
     pub(crate) texture_descriptors: TextureDescriptorLayout,
@@ -57,16 +56,6 @@ impl Pipelines {
             spirv!("solid2d.frag"),
             std::slice::from_ref(&Vertex::BINDING),
             &Vertex::ATTRIBUTES,
-            &[],
-        );
-
-        let sdf = build(
-            device,
-            render_pass,
-            spirv!("sdf2d.vert"),
-            spirv!("sdf2d.frag"),
-            std::slice::from_ref(&SdfVertex::BINDING),
-            &SdfVertex::ATTRIBUTES,
             &[],
         );
 
@@ -93,7 +82,6 @@ impl Pipelines {
 
         Self {
             solid,
-            sdf,
             rounded_rect,
             sprite,
             texture_descriptors,

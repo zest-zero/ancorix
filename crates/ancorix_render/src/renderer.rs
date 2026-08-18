@@ -13,7 +13,7 @@ use crate::geometry::{self, Geometry, RunKind};
 use crate::pipelines::{GLOBALS_SIZE, Pipelines};
 #[cfg(feature = "unstable_shaders")]
 use crate::vertex::ShadedVertex;
-use crate::vertex::{RoundedRectInstance, SdfVertex, SpriteVertex, Vertex};
+use crate::vertex::{RoundedRectInstance, SpriteVertex, Vertex};
 
 // Vulkan wants whole pixels inside the framebuffer, while a clip rect is
 // arbitrary floats: the rect is expanded to whole pixels so nothing that
@@ -60,7 +60,6 @@ pub struct Renderer {
     // buffers from an earlier, not-yet-finished frame. A single shared set
     // would race the CPU write against that in-flight GPU read.
     solid_buffers: Vec<GeometryBuffers<Vertex>>,
-    sdf_buffers: Vec<GeometryBuffers<SdfVertex>>,
     rounded_rect_buffers: Vec<GeometryBuffers<RoundedRectInstance>>,
     sprite_buffers: Vec<GeometryBuffers<SpriteVertex>>,
     #[cfg(feature = "unstable_shaders")]
@@ -70,7 +69,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    /// Returns a renderer owning the shared render pass, the four pipelines,
+    /// Returns a renderer owning the shared render pass, the three pipelines,
     /// and initial (growable) vertex/index buffers for each.
     ///
     /// # Panics
@@ -87,7 +86,6 @@ impl Renderer {
             #[cfg(feature = "unstable_shaders")]
             shader_pipelines: FxHashMap::default(),
             solid_buffers: Self::per_frame_buffers(instance, device),
-            sdf_buffers: Self::per_frame_buffers(instance, device),
             rounded_rect_buffers: Self::per_frame_buffers(instance, device),
             sprite_buffers: Self::per_frame_buffers(instance, device),
             #[cfg(feature = "unstable_shaders")]
@@ -135,7 +133,6 @@ impl Renderer {
         let geometry = &self.geometry;
 
         let solid_buffers = &mut self.solid_buffers[frame_slot];
-        let sdf_buffers = &mut self.sdf_buffers[frame_slot];
         let rounded_rect_buffers = &mut self.rounded_rect_buffers[frame_slot];
         let sprite_buffers = &mut self.sprite_buffers[frame_slot];
 
@@ -144,12 +141,6 @@ impl Renderer {
             device,
             &geometry.solid_vertices,
             &geometry.solid_indices,
-        );
-        sdf_buffers.upload(
-            instance,
-            device,
-            &geometry.sdf_vertices,
-            &geometry.sdf_indices,
         );
         // instanced: one record per shape, and no index buffer at all - the
         // shader derives the quad's corners from `gl_VertexIndex`
@@ -231,21 +222,6 @@ impl Renderer {
                         descriptor_set: None,
                     }
                 }
-                RunKind::Sdf => DrawBatch {
-                    pipeline: self.pipelines.sdf.raw(),
-                    layout: self.pipelines.sdf.layout(),
-                    vertex_buffer: sdf_buffers.vertex_buffer.raw(),
-                    index_buffer: sdf_buffers.index_buffer.raw(),
-                    first_index: run.first,
-                    index_count: run.count,
-                    vertex_count: 0,
-                    instance_count: 0,
-                    first_instance: 0,
-                    first_push_constant: 0,
-                    push_constant_len: GLOBALS_SIZE,
-                    scissor,
-                    descriptor_set: None,
-                },
                 RunKind::RoundedRect => DrawBatch {
                     pipeline: self.pipelines.rounded_rect.raw(),
                     layout: self.pipelines.rounded_rect.layout(),

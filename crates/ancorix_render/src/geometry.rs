@@ -6,7 +6,7 @@ use ancorix_math::Vector2;
 
 #[cfg(feature = "unstable_shaders")]
 use crate::vertex::ShadedVertex;
-use crate::vertex::{RoundedRectInstance, SdfVertex, SpriteVertex, Vertex};
+use crate::vertex::{RoundedRectInstance, SpriteVertex, Vertex};
 
 /// Which pipeline, and which texture for the one that samples, a [`DrawRun`]
 /// is drawn with.
@@ -17,15 +17,14 @@ pub enum RunKind {
     /// (see `ancorix_draw::Draw::with_shader`).
     #[cfg(feature = "unstable_shaders")]
     SolidShaded(ancorix_draw::ShaderSlot),
-    Sdf,
     RoundedRect,
     Sprite(Handle<Texture>),
 }
 
 /// A contiguous range of one pipeline's output, drawn as a single batch.
 ///
-/// `first`/`count` index `solid_indices`, `sdf_indices` or `sprite_indices`
-/// for those kinds, and `rounded_rect_instances` for
+/// `first`/`count` index `solid_indices` or `sprite_indices` for those
+/// kinds, and `rounded_rect_instances` for
 /// [`RunKind::RoundedRect`], which is drawn instanced.
 // One run per *consecutive* sequence of same-kind commands, so queue order
 // (and with it alpha stacking) is exactly what the caller asked for. Drawing
@@ -50,8 +49,6 @@ pub struct DrawRun {
 pub struct Geometry {
     pub solid_vertices: Vec<Vertex>,
     pub solid_indices: Vec<u32>,
-    pub sdf_vertices: Vec<SdfVertex>,
-    pub sdf_indices: Vec<u32>,
     pub rounded_rect_instances: Vec<RoundedRectInstance>,
     pub sprite_vertices: Vec<SpriteVertex>,
     pub sprite_indices: Vec<u32>,
@@ -71,8 +68,6 @@ impl Geometry {
         Self {
             solid_vertices: Vec::with_capacity(INITIAL_VERTEX_CAPACITY),
             solid_indices: Vec::with_capacity(INITIAL_INDEX_CAPACITY),
-            sdf_vertices: Vec::with_capacity(INITIAL_VERTEX_CAPACITY),
-            sdf_indices: Vec::with_capacity(INITIAL_INDEX_CAPACITY),
             rounded_rect_instances: Vec::with_capacity(INITIAL_VERTEX_CAPACITY),
             sprite_vertices: Vec::with_capacity(INITIAL_VERTEX_CAPACITY),
             sprite_indices: Vec::with_capacity(INITIAL_INDEX_CAPACITY),
@@ -87,8 +82,6 @@ impl Geometry {
     fn clear(&mut self) {
         self.solid_vertices.clear();
         self.solid_indices.clear();
-        self.sdf_vertices.clear();
-        self.sdf_indices.clear();
         self.rounded_rect_instances.clear();
         self.sprite_vertices.clear();
         self.sprite_indices.clear();
@@ -230,15 +223,9 @@ fn push_plain(
             transform,
             color,
         } => {
-            let first = out.sdf_indices.len() as u32;
-            let count = push_circle(
-                &mut out.sdf_vertices,
-                &mut out.sdf_indices,
-                shape,
-                transform,
-                color,
-            );
-            (RunKind::Sdf, first, count)
+            let first = out.rounded_rect_instances.len() as u32;
+            let count = push_circle(&mut out.rounded_rect_instances, shape, transform, color);
+            (RunKind::RoundedRect, first, count)
         }
         DrawCmd::RoundedRect {
             shape,
@@ -391,44 +378,20 @@ fn push_triangle(
     3
 }
 
-// One bounding quad, 4 vertices whatever the radius - `sdf2d.frag` finds the
-// edge analytically.
-//
-// `local` stays *untransformed* and is still correct once `transform` skews
-// the quad on screen: `transform` is affine, affine maps commute with the
-// barycentric interpolation the GPU does across a triangle, so interpolating
-// untransformed `local` over the transformed quad gives exactly what
-// `Transform2D::invert` would compute at that point.
+// A circle is a rounded box whose corner radius fills its half-size exactly:
+// `sd_rounded_box(p, (r, r), r)` reduces algebraically to `sd_circle(p, r)`
 fn push_circle(
-    vertices: &mut Vec<SdfVertex>,
-    indices: &mut Vec<u32>,
+    instances: &mut Vec<RoundedRectInstance>,
     shape: Circle,
     transform: Transform2D,
     color: Rgba,
 ) -> u32 {
-    let bounds_min = shape.pos - Vector2::splat(shape.radius);
-    let bounds_size = Vector2::splat(shape.radius * 2.0);
-    let base = vertices.len() as u32;
-
-    let locals = [
-        Vector2::new(-shape.radius, -shape.radius),
-        Vector2::new(shape.radius, -shape.radius),
-        Vector2::new(shape.radius, shape.radius),
-        Vector2::new(-shape.radius, shape.radius),
-    ];
-
-    for local in locals {
-        let p = transform.apply(shape.pos + local, bounds_min, bounds_size);
-        vertices.push(SdfVertex {
-            pos: [p.x, p.y],
-            color: [color.r, color.g, color.b, color.a],
-            local: [local.x, local.y],
-            radius: shape.radius,
-        });
-    }
-
-    indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
-    6
+    let rect = RoundedRect::new(
+        shape.pos - Vector2::splat(shape.radius),
+        Vector2::splat(shape.radius * 2.0),
+        shape.radius,
+    );
+    push_rounded_rect(instances, rect, transform, color)
 }
 
 // `roundedrect2d.vert` builds the six corners from `gl_VertexIndex`, so
@@ -682,9 +645,9 @@ mod tests {
                     clip: None,
                 },
                 DrawRun {
-                    kind: RunKind::Sdf,
+                    kind: RunKind::RoundedRect,
                     first: 0,
-                    count: 6,
+                    count: 1,
                     clip: None,
                 },
                 // the second rect draws *after* the circle, so it must be its
@@ -716,7 +679,7 @@ mod tests {
 
     #[test]
     fn rounded_rect_runs_count_instances_not_indices() {
-        let out = run(&[rounded_rect(), circle(), rounded_rect()]);
+        let out = run(&[rounded_rect(), rect(), rounded_rect()]);
 
         assert_eq!(out.rounded_rect_instances.len(), 2);
         assert_eq!(
@@ -729,7 +692,7 @@ mod tests {
                     clip: None,
                 },
                 DrawRun {
-                    kind: RunKind::Sdf,
+                    kind: RunKind::Solid,
                     first: 0,
                     count: 6,
                     clip: None,
@@ -745,6 +708,22 @@ mod tests {
     }
 
     #[test]
+    fn circle_shares_the_rounded_rect_pipeline() {
+        let out = run(&[rounded_rect(), circle(), rounded_rect(), circle()]);
+
+        assert_eq!(out.rounded_rect_instances.len(), 4);
+        assert_eq!(
+            out.runs,
+            [DrawRun {
+                kind: RunKind::RoundedRect,
+                first: 0,
+                count: 4,
+                clip: None,
+            }]
+        );
+    }
+
+    #[test]
     fn clear_is_a_solid_run_wherever_it_is_queued() {
         let out = run(&[circle(), DrawCmd::Clear(Rgba::BLACK)]);
 
@@ -753,9 +732,9 @@ mod tests {
             out.runs,
             [
                 DrawRun {
-                    kind: RunKind::Sdf,
+                    kind: RunKind::RoundedRect,
                     first: 0,
-                    count: 6,
+                    count: 1,
                     clip: None,
                 },
                 DrawRun {
@@ -777,7 +756,6 @@ mod tests {
                 RunKind::Solid => out.solid_indices.len(),
                 #[cfg(feature = "unstable_shaders")]
                 RunKind::SolidShaded(_) => out.solid_indices.len(),
-                RunKind::Sdf => out.sdf_indices.len(),
                 RunKind::RoundedRect => out.rounded_rect_instances.len(),
                 RunKind::Sprite(_) => out.sprite_indices.len(),
             };
