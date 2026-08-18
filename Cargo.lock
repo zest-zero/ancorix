@@ -67,7 +67,6 @@ version = "0.1.0"
 dependencies = [
  "ancorix_ash",
  "ancorix_asset",
- "ancorix_build",
  "ancorix_color",
  "ancorix_ctx",
  "ancorix_draw",
@@ -91,23 +90,6 @@ dependencies = [
 [[package]]
 name = "ancorix_asset"
 version = "0.1.0"
-
-[[package]]
-name = "ancorix_axb"
-version = "0.1.0"
-dependencies = [
- "criterion",
-]
-
-[[package]]
-name = "ancorix_build"
-version = "0.1.0"
-dependencies = [
- "ancorix_axb",
- "ancorix_input",
- "json5",
- "serde_json",
-]
 
 [[package]]
 name = "ancorix_color"

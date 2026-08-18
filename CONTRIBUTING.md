@@ -47,8 +47,6 @@ The minimum supported Rust version is 1.90, checked by its own CI job.
 | `ancorix_asset` | handles and registries |
 | `ancorix_shader` | compiled SPIR-V |
 | `ancorix_slang` | the shader library, and where to find it |
-| `ancorix_axb` | the binary asset format |
-| `ancorix_build` | compiling project files into it |
 
 Dependencies point one way. `ancorix_input` must not learn about winit,
 `ancorix_ash` must not learn about anything but raw window handles, and no

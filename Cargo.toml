@@ -22,8 +22,6 @@ members = [
     "crates/ancorix_asset",
     "crates/ancorix_winit",
     "crates/ancorix_draw",
-    "crates/ancorix_build",
-    "crates/ancorix_axb",
     "crates/ancorix_text",
     "crates/ancorix_slang",
 ]
@@ -52,8 +50,6 @@ ancorix_asset = { path = "crates/ancorix_asset" }
 ancorix_winit = { path = "crates/ancorix_winit" }
 ancorix_draw = { path = "crates/ancorix_draw" }
 ancorix_text = { path = "crates/ancorix_text" }
-ancorix_build = { path = "crates/ancorix_build" }
-ancorix_axb = { path = "crates/ancorix_axb" }
 
 # External crates
 
@@ -108,6 +104,3 @@ ancorix_shader = { workspace = true, optional = true }
 
 [dev-dependencies]
 bytemuck = { workspace = true }
-
-[build-dependencies]
-ancorix_build = { workspace = true }
