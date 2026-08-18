@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use ancorix_ash::{
@@ -123,21 +123,29 @@ impl<A: App> Runner<A> {
         let Some(project_file) = [self.config.project_dir.clone(), exe_dir, cwd]
             .into_iter()
             .flatten()
-            .find_map(|dir| ancorix_build::find_project_file(&dir))
+            .find_map(|dir| find_project_file(&dir))
         else {
             return;
         };
 
-        let project = ancorix_build::parse_project_file(&project_file);
+        let src = std::fs::read_to_string(&project_file)
+            .unwrap_or_else(|e| panic!("failed to read {}: {e}", project_file.display()));
+        // json5 is a superset of json - accepts both .json and .json5
+        let project: serde_json::Value = json5::from_str(&src)
+            .unwrap_or_else(|e| panic!("failed to parse {}: {e}", project_file.display()));
 
-        if let Some(section) = project.get("input") {
-            let bytes = ancorix_build::sections::input::compile(section);
-            let _ = self.input.load_bindings(&bytes);
+        if let Some(section) = project.get("input").and_then(|v| v.as_object()) {
+            for (action, value) in section {
+                let Some(keys) = value.as_array() else {
+                    continue;
+                };
+                let keys: Vec<&str> = keys.iter().filter_map(|k| k.as_str()).collect();
+                self.input.bind_key_names(action.as_str(), &keys);
+            }
         }
 
-        if let Some(section) = project.get("window") {
-            let bytes = ancorix_build::sections::window::compile(section);
-            self.apply_window_section(&bytes);
+        if let Some(section) = project.get("window").and_then(|v| v.as_object()) {
+            self.apply_window_section(section);
         }
     }
 
@@ -145,33 +153,22 @@ impl<A: App> Runner<A> {
     // is the whole reason the section exists, and `Window::new` always sets
     // a title and a size, so a builder-wins rule would make it dead weight.
     // Only keys actually written in the file are applied.
-    fn apply_window_section(&mut self, bytes: &[u8]) {
-        let Some(section) =
-            ancorix_axb::read(bytes)
-                .into_iter()
-                .find_map(|section| match section {
-                    ancorix_axb::Section::Window(window) => Some(window),
-                    _ => None,
-                })
-        else {
-            return;
-        };
-
-        if let Some(title) = section.title {
-            self.config.title = title;
+    fn apply_window_section(&mut self, section: &serde_json::Map<String, serde_json::Value>) {
+        if let Some(title) = section.get("title").and_then(|v| v.as_str()) {
+            self.config.title = title.to_string();
         }
-        if let Some(width) = section.width {
-            self.config.width = width;
+        if let Some(width) = section.get("width").and_then(|v| v.as_u64()) {
+            self.config.width = width as u32;
         }
-        if let Some(height) = section.height {
-            self.config.height = height;
+        if let Some(height) = section.get("height").and_then(|v| v.as_u64()) {
+            self.config.height = height as u32;
         }
-        if let Some(fps) = section.fps {
-            // 0 means "uncapped" in the section, and `None` means the same
-            // to the runner
+        if let Some(fps) = section.get("fps").and_then(|v| v.as_u64()) {
+            // 0 means "uncapped" in the file, and `None` means the same to
+            // the runner
             self.config.target_fps = (fps > 0).then_some(fps as u32);
         }
-        if let Some(vsync) = section.vsync {
+        if let Some(vsync) = section.get("vsync").and_then(|v| v.as_bool()) {
             self.config.vsync = vsync;
         }
     }
@@ -429,6 +426,24 @@ impl<A: App> Runner<A> {
         self.time = ctx.time;
         self.window_info = ctx.window;
     }
+}
+
+// Looks for `*.project.json5` / `*.project.json` directly inside `dir`.
+// Prefers `.json5` for comments, falling back to `.json`.
+fn find_project_file(dir: &Path) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .find(|path| {
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                return false;
+            };
+            let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+                return false;
+            };
+            stem.ends_with(".project") && (ext == "json5" || ext == "json")
+        })
 }
 
 fn monitor_info(monitor: &winit::monitor::MonitorHandle) -> ancorix_ctx::MonitorInfo {

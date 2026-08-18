@@ -16,8 +16,6 @@ ancorix_color = { workspace = true }
 ancorix_ctx = { workspace = true }
 ancorix_input = { workspace = true }
 ancorix_winit = { workspace = true }
-ancorix_build = { workspace = true }
-ancorix_axb = { workspace = true }
 ancorix_ash = { workspace = true }
 ancorix_draw = { workspace = true }
 ancorix_math = { workspace = true }
@@ -26,4 +24,5 @@ ancorix_shader = { workspace = true, optional = true }
 ash = { workspace = true }
 winit = { workspace = true }
 serde_json = { workspace = true }
+json5 = { workspace = true }
 raw-window-handle = { workspace = true }

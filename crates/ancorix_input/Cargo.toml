@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 ancorix_math = { workspace = true }
-ancorix_axb = { workspace = true }
 rustc-hash = { workspace = true }
 
 [dev-dependencies]

@@ -223,57 +223,35 @@ impl Input {
         self.actions.insert(action.into(), bindings);
     }
 
-    /// Loads named actions from a compiled `.axb` input section
-    /// replacing any existing bindings with the same name.
-    /// Unrecognized key names are skipped.
+    /// Binds `action` to every name in `keys` that matches a [`Key`]
+    /// (see [`Key::from_name`]), replacing any existing bindings with the
+    /// same name. Unrecognized key names are skipped.
     ///
-    /// # Errors
-    ///
-    /// Returns an error if `bytes` contains no input section.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `bytes` is not a well-formed `.axb` file (see
-    /// `ancorix_axb::read`).
+    /// For config-file-driven bindings, where key names arrive as strings
+    /// rather than [`Key`] values directly.
     ///
     /// # Examples
     ///
     /// ```
     /// use ancorix_input::{Input, Key};
-    /// use ancorix_axb::{SectionType, Writer};
-    ///
-    /// let mut w = Writer::new(SectionType::Input, 1);
-    /// w.u16(1); // one action
-    /// w.str("jump");
-    /// w.u8(1); // one binding
-    /// w.str("Space");
-    /// let bytes = w.finish();
     ///
     /// let mut input = Input::new();
-    /// input.load_bindings(&bytes).unwrap();
+    /// input.bind_key_names("jump", &["Space"]);
     ///
     /// input.press_key(Key::Space);
     /// assert!(input.action_pressed("jump"));
     /// ```
-    pub fn load_bindings(&mut self, bytes: &[u8]) -> Result<(), Box<str>> {
-        let input_section = ancorix_axb::read(bytes)
-            .into_iter()
-            .find_map(|section| match section {
-                ancorix_axb::Section::Input(input) => Some(input),
-                _ => None,
-            })
-            .ok_or("no input section in .axb file")?;
-
-        for (action, keys) in input_section.actions {
-            let bindings = keys
-                .iter()
-                .filter_map(|k| Key::from_name(k))
-                .map(Binding::Key)
-                .collect();
-            self.actions.insert(action.into_boxed_str(), bindings);
-        }
-
-        Ok(())
+    ///
+    /// # See also
+    ///
+    /// * [`Input::bind_keys()`]
+    pub fn bind_key_names(&mut self, action: impl Into<Box<str>>, keys: &[&str]) {
+        let bindings = keys
+            .iter()
+            .filter_map(|k| Key::from_name(k))
+            .map(Binding::Key)
+            .collect();
+        self.actions.insert(action.into(), bindings);
     }
 
     /// Returns `true` while any binding for `action` is held.

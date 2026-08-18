@@ -149,7 +149,6 @@ dependencies = [
 name = "ancorix_input"
 version = "0.1.0"
 dependencies = [
- "ancorix_axb",
  "ancorix_math",
  "criterion",
  "rustc-hash",
@@ -206,8 +205,6 @@ version = "0.1.0"
 dependencies = [
  "ancorix_ash",
  "ancorix_asset",
- "ancorix_axb",
- "ancorix_build",
  "ancorix_color",
  "ancorix_ctx",
  "ancorix_draw",
@@ -217,6 +214,7 @@ dependencies = [
  "ancorix_shader",
  "ancorix_winit",
  "ash",
+ "json5",
  "raw-window-handle",
  "serde_json",
  "winit",
