@@ -8,7 +8,7 @@ pub use ancorix_draw::SpriteAnimation;
 pub use ancorix_draw::{
     Circle, Draw, DrawCmd, Line, Rect, RoundedRect, Sprite, SpriteSheet, Transform2D, Triangle,
 };
-pub use ancorix_input::{Binding, Key, MouseButton};
+pub use ancorix_input::{Binding, Key, KeyEvent, MouseButton, TextField};
 pub use ancorix_math::{Vector2, v2};
 #[cfg(feature = "unstable_shaders")]
 pub use ancorix_shader::Shader;
