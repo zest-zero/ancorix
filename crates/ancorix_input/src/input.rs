@@ -1,4 +1,4 @@
-use crate::{Binding, Key, MouseButton};
+use crate::{Binding, Key, KeyEvent, MouseButton};
 use ancorix_math::Vector2;
 use rustc_hash::FxHashMap;
 
@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 pub struct Input {
     keys_cur: [bool; Key::COUNT],
     keys_prev: [bool; Key::COUNT],
+    key_events: Vec<KeyEvent>,
 
     mouse_cur: Vec<MouseButton>,
     mouse_prev: Vec<MouseButton>,
@@ -35,6 +36,7 @@ impl Input {
         Self {
             keys_cur: [false; Key::COUNT],
             keys_prev: [false; Key::COUNT],
+            key_events: Vec::new(),
             mouse_cur: Vec::new(),
             mouse_prev: Vec::new(),
             mouse_pos: Vector2::ZERO,
@@ -107,6 +109,38 @@ impl Input {
     pub const fn is_just_released(&self, key: Key) -> bool {
         let i = key.index();
         !self.keys_cur[i] && self.keys_prev[i]
+    }
+
+    /// Returns this frame's keyboard events, oldest first.
+    ///
+    /// Where the queries above report state, this reports what happened and
+    /// in which order - what a text field needs, and what auto-repeat and
+    /// typed characters arrive through.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_input::{Input, Key, KeyEvent};
+    ///
+    /// let mut input = Input::new();
+    /// input.press_key(Key::Backspace);
+    /// input.push_char('x');
+    ///
+    /// assert_eq!(
+    ///     input.key_events(),
+    ///     [KeyEvent::Pressed(Key::Backspace), KeyEvent::Char('x')]
+    /// );
+    ///
+    /// input.begin_frame();
+    /// assert!(input.key_events().is_empty());
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// [`TextField::apply()`](crate::TextField::apply)
+    #[inline]
+    pub fn key_events(&self) -> &[KeyEvent] {
+        &self.key_events
     }
 
     /// Returns `true` while mouse `button` is held down.
@@ -354,6 +388,7 @@ impl Input {
     #[doc(hidden)]
     pub fn begin_frame(&mut self) {
         self.keys_prev = self.keys_cur;
+        self.key_events.clear();
 
         self.mouse_prev.clear();
         self.mouse_prev.extend_from_slice(&self.mouse_cur);
@@ -363,12 +398,26 @@ impl Input {
         self.scroll_delta = 0.0;
     }
 
-    /// Marks `key` as pressed. Called by a window backend adapter.
+    /// Marks `key` as pressed and queues it. Called by a window backend
+    /// adapter, once per press and once per auto-repeat.
     // fed by the platform adapter (`ancorix_winit`), never by a game
     #[doc(hidden)]
     #[inline]
-    pub const fn press_key(&mut self, key: Key) {
+    pub fn press_key(&mut self, key: Key) {
         self.keys_cur[key.index()] = true;
+        self.key_events.push(KeyEvent::Pressed(key));
+    }
+
+    /// Queues `ch` as typed text, dropping control characters. Called by a
+    /// window backend adapter.
+    // control characters are key presses, not text: a field that inserts
+    // Enter's '\r' or Tab's '\t' shows a box where a glyph should be
+    #[doc(hidden)]
+    #[inline]
+    pub fn push_char(&mut self, ch: char) {
+        if !ch.is_control() {
+            self.key_events.push(KeyEvent::Char(ch));
+        }
     }
 
     /// Marks `key` as released. Called by a window backend adapter.

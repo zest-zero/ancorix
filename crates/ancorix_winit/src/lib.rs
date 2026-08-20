@@ -17,15 +17,30 @@ use winit::keyboard::PhysicalKey;
 pub fn feed_event(input: &mut Input, event: &WindowEvent) {
     match event {
         WindowEvent::KeyboardInput { event, .. } => {
-            let PhysicalKey::Code(code) = event.physical_key else {
-                return;
+            let key = match event.physical_key {
+                PhysicalKey::Code(code) => keys::map_key(code),
+                PhysicalKey::Unidentified(_) => None,
             };
-            let Some(key) = keys::map_key(code) else {
-                return;
-            };
+
             match event.state {
-                ElementState::Pressed => input.press_key(key),
-                ElementState::Released => input.release_key(key),
+                ElementState::Pressed => {
+                    if let Some(key) = key {
+                        input.press_key(key);
+                    }
+
+                    // not inside the `if` above: `Key` has no punctuation, so
+                    // ',' and '-' produce text without mapping to a key
+                    if let Some(text) = &event.text {
+                        for ch in text.chars() {
+                            input.push_char(ch);
+                        }
+                    }
+                }
+                ElementState::Released => {
+                    if let Some(key) = key {
+                        input.release_key(key);
+                    }
+                }
             }
         }
 
