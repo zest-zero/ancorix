@@ -2,7 +2,7 @@ pub use ancorix_ash::{Texture, TextureFilter};
 pub use ancorix_asset::Handle;
 pub use ancorix_color::{Rgba, rgba};
 pub use ancorix_ctx::App;
-pub use ancorix_ctx::{Ctx, Interpolated, Time, WindowInfo};
+pub use ancorix_ctx::{Ctx, Cursor, Interpolated, Time, WindowInfo};
 #[cfg(feature = "sprite_animation")]
 pub use ancorix_draw::SpriteAnimation;
 pub use ancorix_draw::{

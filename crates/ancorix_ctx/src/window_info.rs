@@ -1,4 +1,4 @@
-use crate::MonitorInfo;
+use crate::{Cursor, MonitorInfo};
 use ancorix_math::Vector2;
 
 /// Per-frame window state and control.
@@ -11,6 +11,7 @@ pub struct WindowInfo {
     exit_requested: bool,
     exit_code: u8,
     cursor_visible: bool,
+    cursor: Cursor,
 }
 
 impl WindowInfo {
@@ -38,6 +39,7 @@ impl WindowInfo {
             exit_requested: false,
             exit_code: 0,
             cursor_visible: true,
+            cursor: Cursor::Default,
         }
     }
 
@@ -172,6 +174,49 @@ impl WindowInfo {
     #[inline]
     pub const fn set_cursor_visible(&mut self, visible: bool) {
         self.cursor_visible = visible;
+    }
+
+    /// Returns the shape the cursor takes over the window.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_ctx::{Cursor, WindowInfo};
+    ///
+    /// let window = WindowInfo::new(800, 600);
+    /// assert_eq!(window.cursor(), Cursor::Default);
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// [`WindowInfo::set_cursor`]
+    #[inline]
+    pub const fn cursor(&self) -> Cursor {
+        self.cursor
+    }
+
+    /// Sets the shape the cursor takes over the window.
+    ///
+    /// Sticky, like every other window setting: set it each frame from what
+    /// is under the pointer, and it stays until something sets it otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_ctx::{Cursor, WindowInfo};
+    ///
+    /// let mut window = WindowInfo::new(800, 600);
+    /// window.set_cursor(Cursor::Text);
+    ///
+    /// assert_eq!(window.cursor(), Cursor::Text);
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// [`WindowInfo::cursor`]
+    #[inline]
+    pub const fn set_cursor(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
     }
 
     /// Called at the start of each frame. Clears [`WindowInfo::resized`].

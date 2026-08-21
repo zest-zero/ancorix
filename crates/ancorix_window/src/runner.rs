@@ -6,7 +6,7 @@ use ancorix_ash::{
 };
 use ancorix_color::Rgba;
 use ancorix_ctx::App;
-use ancorix_ctx::{Ctx, Time, WindowInfo};
+use ancorix_ctx::{Ctx, Cursor, Time, WindowInfo};
 use ancorix_draw::Draw;
 use ancorix_input::Input;
 use ancorix_math::Vector2;
@@ -16,7 +16,7 @@ use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::window::{Window as WinitWindow, WindowAttributes, WindowId};
+use winit::window::{CursorIcon, Window as WinitWindow, WindowAttributes, WindowId};
 
 use crate::Window;
 
@@ -71,9 +71,10 @@ pub(crate) struct Runner<A: App> {
     // while `app` is still `None` - see that method's doc comment.
     init_size_checkpoint: Option<Vector2>,
 
-    // last value applied to the real OS cursor, so `tick` only calls
-    // `set_cursor_visible` on an actual change, not every frame.
+    // last values applied to the real OS cursor, so `tick` only calls into
+    // winit on an actual change, not every frame.
     applied_cursor_visible: bool,
+    applied_cursor: Cursor,
 }
 
 impl<A: App> Runner<A> {
@@ -103,6 +104,7 @@ impl<A: App> Runner<A> {
             #[cfg(feature = "unstable_shaders")]
             shaders: ancorix_asset::Assets::new(),
             applied_cursor_visible: true,
+            applied_cursor: Cursor::Default,
         }
     }
 
@@ -203,6 +205,14 @@ impl<A: App> Runner<A> {
             self.applied_cursor_visible = cursor_visible;
             if let Some(window) = &self.window {
                 window.set_cursor_visible(cursor_visible);
+            }
+        }
+
+        let cursor = self.window_info.cursor();
+        if cursor != self.applied_cursor {
+            self.applied_cursor = cursor;
+            if let Some(window) = &self.window {
+                window.set_cursor(cursor_icon(cursor));
             }
         }
 
@@ -661,5 +671,30 @@ impl<A: App> ApplicationHandler for Runner<A> {
             }
             None => event_loop.set_control_flow(ControlFlow::Poll),
         }
+    }
+}
+
+// The `Cursor` -> winit map. Here rather than in `ancorix_winit` because that
+// crate's one job is feeding events into `ancorix_input`; applying window
+// settings is what the runner already does for size, fullscreen and cursor
+// visibility.
+fn cursor_icon(cursor: Cursor) -> CursorIcon {
+    match cursor {
+        Cursor::Default => CursorIcon::Default,
+        Cursor::Text => CursorIcon::Text,
+        Cursor::Pointer => CursorIcon::Pointer,
+        Cursor::Crosshair => CursorIcon::Crosshair,
+        Cursor::Move => CursorIcon::Move,
+        Cursor::Grab => CursorIcon::Grab,
+        Cursor::Grabbing => CursorIcon::Grabbing,
+        Cursor::NotAllowed => CursorIcon::NotAllowed,
+        Cursor::Progress => CursorIcon::Progress,
+        Cursor::Wait => CursorIcon::Wait,
+        Cursor::ResizeHorizontal => CursorIcon::EwResize,
+        Cursor::ResizeVertical => CursorIcon::NsResize,
+        Cursor::ResizeDiagonalUp => CursorIcon::NeswResize,
+        Cursor::ResizeDiagonalDown => CursorIcon::NwseResize,
+        Cursor::ResizeColumn => CursorIcon::ColResize,
+        Cursor::ResizeRow => CursorIcon::RowResize,
     }
 }
