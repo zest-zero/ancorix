@@ -1,4 +1,4 @@
-use crate::Ctx;
+use crate::{Ctx, Redraw};
 
 /// An application: state you own, and what to draw with it each frame.
 ///
@@ -76,4 +76,34 @@ pub trait App: Sized {
     /// }
     /// ```
     fn frame(&mut self, ctx: &mut Ctx);
+
+    /// Returns when the next frame is needed. Defaults to [`Redraw::Now`],
+    /// which is a frame as often as the display will take one.
+    ///
+    /// A frame is drawn on every event regardless of what this returns, so
+    /// an application that only reacts to input can sleep between them and
+    /// still feel immediate. One that moves on its own - a game, an
+    /// animation - keeps the default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use ancorix_ctx::{App, Ctx, Redraw};
+    /// # use std::time::Duration;
+    /// # struct Editor { settling: bool }
+    /// impl App for Editor {
+    /// #   fn init(_ctx: &mut Ctx) -> Self { Self { settling: false } }
+    /// #   fn frame(&mut self, _ctx: &mut Ctx) {}
+    ///     fn redraw(&self) -> Redraw {
+    ///         if self.settling {
+    ///             Redraw::Now
+    ///         } else {
+    ///             Redraw::After(Duration::from_millis(500))
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn redraw(&self) -> Redraw {
+        Redraw::Now
+    }
 }

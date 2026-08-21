@@ -6,7 +6,7 @@ use ancorix_ash::{
 };
 use ancorix_color::Rgba;
 use ancorix_ctx::App;
-use ancorix_ctx::{Ctx, Time, WindowInfo};
+use ancorix_ctx::{Ctx, Redraw, Time, WindowInfo};
 use ancorix_draw::Draw;
 use ancorix_input::Input;
 use ancorix_math::Vector2;
@@ -74,6 +74,9 @@ pub(crate) struct Runner<A: App> {
     // last value applied to the real OS cursor, so `tick` only calls
     // `set_cursor_visible` on an actual change, not every frame.
     applied_cursor_visible: bool,
+
+    // what the app asked for after its last frame, read in `about_to_wait`
+    redraw: Redraw,
 }
 
 impl<A: App> Runner<A> {
@@ -98,6 +101,7 @@ impl<A: App> Runner<A> {
             last_tick: Instant::now(),
             app: None,
             init_size_checkpoint: None,
+            redraw: Redraw::Now,
             gpu_timer: None,
             textures: ancorix_asset::Assets::new(),
             #[cfg(feature = "unstable_shaders")]
@@ -194,6 +198,7 @@ impl<A: App> Runner<A> {
         );
         if let Some(app) = &mut self.app {
             app.frame(&mut ctx);
+            self.redraw = app.redraw();
         }
         self.time = ctx.time;
         self.window_info = ctx.window;
@@ -586,6 +591,16 @@ impl<A: App> ApplicationHandler for Runner<A> {
     ) {
         ancorix_winit::feed_event(&mut self.input, &event);
 
+        // every event earns a frame, whatever `App::redraw` asked for:
+        // that is what lets a sleeping app still feel immediate, and what
+        // keeps `Redraw::OnEvent` from needing a single call anywhere
+        if self.app.is_some()
+            && !matches!(event, WindowEvent::RedrawRequested)
+            && let Some(window) = &self.window
+        {
+            window.request_redraw();
+        }
+
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => self.window_info.resize(size.width, size.height),
@@ -654,12 +669,23 @@ impl<A: App> ApplicationHandler for Runner<A> {
             return;
         }
 
-        match self.config.target_fps {
-            Some(fps) => {
-                let frame_time = Duration::from_secs_f64(1.0 / fps as f64);
-                event_loop.set_control_flow(ControlFlow::WaitUntil(self.last_tick + frame_time));
+        // the app says when it next needs a frame, `fps` says how often it
+        // may have one at most - whichever wakes later wins
+        let capped = self
+            .config
+            .target_fps
+            .map(|fps| self.last_tick + Duration::from_secs_f64(1.0 / fps as f64));
+
+        let flow = match (self.redraw, capped) {
+            (Redraw::OnEvent, _) => ControlFlow::Wait,
+            (Redraw::Now, None) => ControlFlow::Poll,
+            (Redraw::Now, Some(at)) => ControlFlow::WaitUntil(at),
+            (Redraw::After(delay), None) => ControlFlow::WaitUntil(self.last_tick + delay),
+            (Redraw::After(delay), Some(at)) => {
+                ControlFlow::WaitUntil((self.last_tick + delay).max(at))
             }
-            None => event_loop.set_control_flow(ControlFlow::Poll),
-        }
+        };
+
+        event_loop.set_control_flow(flow);
     }
 }

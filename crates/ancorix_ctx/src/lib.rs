@@ -4,6 +4,7 @@ pub mod ctx;
 mod decode;
 pub mod interpolated;
 pub mod monitor_info;
+pub mod redraw;
 pub mod time;
 pub mod window_info;
 
@@ -12,5 +13,6 @@ pub use assets::Assets;
 pub use ctx::Ctx;
 pub use interpolated::Interpolated;
 pub use monitor_info::MonitorInfo;
+pub use redraw::Redraw;
 pub use time::Time;
 pub use window_info::WindowInfo;
