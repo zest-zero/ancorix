@@ -3,9 +3,13 @@ use winit::keyboard::KeyCode;
 
 // Maps a winit physical key code to an ancorix [`Key`].
 //
-// Returns `None` for keys ancorix doesn't track (numpad, media keys,
-// language-specific keys, etc.) - a `None` is simply ignored by
-// [`crate::feed_event`].
+// Returns `None` for the codes ancorix doesn't track - media, browser and
+// power keys, and the ones winit itself says are never emitted (`Fn`,
+// `FnLock`). A `None` is simply ignored by [`crate::feed_event`].
+//
+// Most names line up with winit's; the four groups that don't are letters
+// (`KeyA`), digits (`Digit0`), arrows (`ArrowUp`) and control (`ControlLeft`),
+// which is why this is a table and not a transmute.
 pub(crate) fn map_key(code: KeyCode) -> Option<Key> {
     Some(match code {
         KeyCode::KeyA => Key::A,
@@ -63,6 +67,8 @@ pub(crate) fn map_key(code: KeyCode) -> Option<Key> {
         KeyCode::ControlRight => Key::CtrlRight,
         KeyCode::AltLeft => Key::AltLeft,
         KeyCode::AltRight => Key::AltRight,
+        KeyCode::SuperLeft => Key::SuperLeft,
+        KeyCode::SuperRight => Key::SuperRight,
 
         KeyCode::F1 => Key::F1,
         KeyCode::F2 => Key::F2,
@@ -76,6 +82,18 @@ pub(crate) fn map_key(code: KeyCode) -> Option<Key> {
         KeyCode::F10 => Key::F10,
         KeyCode::F11 => Key::F11,
         KeyCode::F12 => Key::F12,
+        KeyCode::F13 => Key::F13,
+        KeyCode::F14 => Key::F14,
+        KeyCode::F15 => Key::F15,
+        KeyCode::F16 => Key::F16,
+        KeyCode::F17 => Key::F17,
+        KeyCode::F18 => Key::F18,
+        KeyCode::F19 => Key::F19,
+        KeyCode::F20 => Key::F20,
+        KeyCode::F21 => Key::F21,
+        KeyCode::F22 => Key::F22,
+        KeyCode::F23 => Key::F23,
+        KeyCode::F24 => Key::F24,
 
         KeyCode::Insert => Key::Insert,
         KeyCode::Delete => Key::Delete,
@@ -83,6 +101,48 @@ pub(crate) fn map_key(code: KeyCode) -> Option<Key> {
         KeyCode::End => Key::End,
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
+
+        KeyCode::Minus => Key::Minus,
+        KeyCode::Equal => Key::Equal,
+        KeyCode::BracketLeft => Key::BracketLeft,
+        KeyCode::BracketRight => Key::BracketRight,
+        KeyCode::Backslash => Key::Backslash,
+        KeyCode::Semicolon => Key::Semicolon,
+        KeyCode::Quote => Key::Quote,
+        KeyCode::Comma => Key::Comma,
+        KeyCode::Period => Key::Period,
+        KeyCode::Slash => Key::Slash,
+        KeyCode::Backquote => Key::Backquote,
+
+        KeyCode::IntlBackslash => Key::IntlBackslash,
+        KeyCode::IntlRo => Key::IntlRo,
+        KeyCode::IntlYen => Key::IntlYen,
+
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+        KeyCode::PrintScreen => Key::PrintScreen,
+        KeyCode::Pause => Key::Pause,
+        KeyCode::ContextMenu => Key::ContextMenu,
+
+        KeyCode::Numpad0 => Key::Numpad0,
+        KeyCode::Numpad1 => Key::Numpad1,
+        KeyCode::Numpad2 => Key::Numpad2,
+        KeyCode::Numpad3 => Key::Numpad3,
+        KeyCode::Numpad4 => Key::Numpad4,
+        KeyCode::Numpad5 => Key::Numpad5,
+        KeyCode::Numpad6 => Key::Numpad6,
+        KeyCode::Numpad7 => Key::Numpad7,
+        KeyCode::Numpad8 => Key::Numpad8,
+        KeyCode::Numpad9 => Key::Numpad9,
+        KeyCode::NumpadAdd => Key::NumpadAdd,
+        KeyCode::NumpadSubtract => Key::NumpadSubtract,
+        KeyCode::NumpadMultiply => Key::NumpadMultiply,
+        KeyCode::NumpadDivide => Key::NumpadDivide,
+        KeyCode::NumpadDecimal => Key::NumpadDecimal,
+        KeyCode::NumpadComma => Key::NumpadComma,
+        KeyCode::NumpadEnter => Key::NumpadEnter,
+        KeyCode::NumpadEqual => Key::NumpadEqual,
 
         _ => return None,
     })
