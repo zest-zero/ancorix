@@ -258,6 +258,31 @@ impl Rect {
         Rect::new(self.center() - size * 0.5, size)
     }
 
+    /// Returns the rectangle moved by `delta`, keeping its size.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Rect;
+    /// use ancorix_math::v2;
+    ///
+    /// let square = Rect::new(v2!(10.0, 10.0), v2!(50.0, 50.0));
+    ///
+    /// assert_eq!(
+    ///     square.offset(v2!(60.0, 0.0)),
+    ///     Rect::new(v2!(70.0, 10.0), v2!(50.0, 50.0))
+    /// );
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`Rect::inset()`]
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> Rect {
+        Rect::new(self.pos.const_add(delta), self.size)
+    }
+
     /// Returns `true` if `point` is inside the rectangle.
     ///
     /// Doesn't account for any [`Transform2D`] the rectangle was drawn
@@ -331,6 +356,27 @@ impl Circle {
     #[inline(always)]
     pub fn new(pos: Vector2, radius: f32) -> Self {
         Self { pos, radius }
+    }
+
+    /// Returns the circle moved by `delta`, keeping its radius.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Circle;
+    /// use ancorix_math::v2;
+    ///
+    /// let dot = Circle::new(v2!(10.0, 10.0), 4.0);
+    ///
+    /// assert_eq!(dot.offset(v2!(0.0, 20.0)).pos, v2!(10.0, 30.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> Circle {
+        Circle {
+            pos: self.pos.const_add(delta),
+            radius: self.radius,
+        }
     }
 
     /// Returns `true` if `point` is inside the circle.
@@ -410,6 +456,28 @@ impl RoundedRect {
     #[inline(always)]
     pub const fn new(pos: Vector2, size: Vector2, radius: f32) -> Self {
         Self { pos, size, radius }
+    }
+
+    /// Returns the rectangle moved by `delta`, keeping its size and radius.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::RoundedRect;
+    /// use ancorix_math::v2;
+    ///
+    /// let card = RoundedRect::new(v2!(0.0, 0.0), v2!(80.0, 40.0), 6.0);
+    ///
+    /// assert_eq!(card.offset(v2!(90.0, 0.0)).pos, v2!(90.0, 0.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> RoundedRect {
+        RoundedRect {
+            pos: self.pos.const_add(delta),
+            size: self.size,
+            radius: self.radius,
+        }
     }
 
     /// Returns a new [`RoundedRect`] with the given center point, size, and
@@ -513,6 +581,29 @@ impl Line {
         }
     }
 
+    /// Returns the segment moved by `delta`, both ends together.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Line;
+    /// use ancorix_math::v2;
+    ///
+    /// let rule = Line::new(v2!(0.0, 0.0), v2!(100.0, 0.0), 1.0);
+    /// let below = rule.offset(v2!(0.0, 20.0));
+    ///
+    /// assert_eq!((below.from, below.to), (v2!(0.0, 20.0), v2!(100.0, 20.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> Line {
+        Line {
+            from: self.from.const_add(delta),
+            to: self.to.const_add(delta),
+            thickness: self.thickness,
+        }
+    }
+
     /// Returns `true` if `point` is within [`Line::thickness`] / 2 of the
     /// segment.
     ///
@@ -573,6 +664,28 @@ impl Triangle {
     #[inline(always)]
     pub fn new(a: Vector2, b: Vector2, c: Vector2) -> Self {
         Self { a, b, c }
+    }
+
+    /// Returns the triangle moved by `delta`, all three corners together.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Triangle;
+    /// use ancorix_math::v2;
+    ///
+    /// let arrow = Triangle::new(v2!(0.0, 0.0), v2!(10.0, 0.0), v2!(5.0, 8.0));
+    ///
+    /// assert_eq!(arrow.offset(v2!(3.0, 0.0)).a, v2!(3.0, 0.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> Triangle {
+        Triangle {
+            a: self.a.const_add(delta),
+            b: self.b.const_add(delta),
+            c: self.c.const_add(delta),
+        }
     }
 
     /// Returns `true` if `point` is inside the triangle.
@@ -671,6 +784,29 @@ impl Sprite {
             pos,
             size,
             source: None,
+        }
+    }
+
+    /// Returns the sprite moved by `delta`, keeping its size and the part of
+    /// the texture it samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Sprite;
+    /// use ancorix_math::v2;
+    ///
+    /// let tile = Sprite::new(v2!(0.0, 0.0), v2!(16.0, 16.0));
+    ///
+    /// assert_eq!(tile.offset(v2!(16.0, 0.0)).pos, v2!(16.0, 0.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn offset(self, delta: Vector2) -> Sprite {
+        Sprite {
+            pos: self.pos.const_add(delta),
+            size: self.size,
+            source: self.source,
         }
     }
 
