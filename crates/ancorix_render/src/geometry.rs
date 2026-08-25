@@ -364,9 +364,8 @@ fn push_triangle(
     transform: Transform2D,
     color: Rgba,
 ) -> u32 {
-    let bounds_min = shape.a.min(shape.b).min(shape.c);
-    let bounds_max = shape.a.max(shape.b).max(shape.c);
-    let bounds_size = bounds_max - bounds_min;
+    let bounds = shape.bounds();
+    let (bounds_min, bounds_size) = (bounds.pos, bounds.size);
     let base = vertices.len() as u32;
 
     for corner in [shape.a, shape.b, shape.c] {
@@ -531,8 +530,8 @@ fn push_triangle_shaded(
 ) -> u32 {
     // uv spans the triangle's bounding box, so a shader sees the same 0..1
     // square it would for a rect
-    let bounds_min = shape.a.min(shape.b).min(shape.c);
-    let bounds_size = shape.a.max(shape.b).max(shape.c) - bounds_min;
+    let bounds = shape.bounds();
+    let (bounds_min, bounds_size) = (bounds.pos, bounds.size);
     let base = vertices.len() as u32;
 
     for corner in [shape.a, shape.b, shape.c] {

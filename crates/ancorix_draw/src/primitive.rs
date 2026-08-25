@@ -283,6 +283,27 @@ impl Rect {
         Rect::new(self.pos.const_add(delta), self.size)
     }
 
+    /// Returns the box the rectangle occupies, which is itself.
+    ///
+    /// Here so that every primitive answers the same question the same way -
+    /// see [`Circle::bounds()`] for what the answer is used for.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::Rect;
+    /// use ancorix_math::v2;
+    ///
+    /// let rect = Rect::new(v2!(4.0, 8.0), v2!(20.0, 10.0));
+    ///
+    /// assert_eq!(rect.bounds(), rect);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn bounds(self) -> Rect {
+        self
+    }
+
     /// Returns `true` if `point` is inside the rectangle.
     ///
     /// Doesn't account for any [`Transform2D`] the rectangle was drawn
@@ -379,6 +400,33 @@ impl Circle {
         }
     }
 
+    /// Returns the axis-aligned box the circle occupies.
+    ///
+    /// [`Transform2D::origin`] is in normalized coordinates - `(0.5, 0.5)`
+    /// means "the middle of the shape" - so turning it into a real pivot
+    /// point needs this box. It says nothing about the silhouette: whether a
+    /// point is *inside* is still [`Circle::contains()`], which measures the
+    /// distance to the centre.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::{Circle, Rect};
+    /// use ancorix_math::v2;
+    ///
+    /// let circle = Circle::new(v2!(100.0, 100.0), 50.0);
+    ///
+    /// assert_eq!(circle.bounds(), Rect::new(v2!(50.0, 50.0), v2!(100.0, 100.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn bounds(self) -> Rect {
+        Rect::new(
+            self.pos.const_sub(Vector2::splat(self.radius)),
+            Vector2::splat(self.radius * 2.0),
+        )
+    }
+
     /// Returns `true` if `point` is inside the circle.
     ///
     /// Doesn't account for any [`Transform2D`] the circle was drawn with -
@@ -430,9 +478,8 @@ impl Circle {
     #[inline]
     #[must_use]
     pub fn contains_ex(self, point: Vector2, transform: Transform2D) -> bool {
-        let bounds_min = self.pos - Vector2::splat(self.radius);
-        let bounds_size = Vector2::splat(self.radius * 2.0);
-        self.contains(transform.invert(point, bounds_min, bounds_size))
+        let bounds = self.bounds();
+        self.contains(transform.invert(point, bounds.pos, bounds.size))
     }
 }
 
@@ -478,6 +525,24 @@ impl RoundedRect {
             size: self.size,
             radius: self.radius,
         }
+    }
+
+    /// Returns the box the rectangle occupies, corners included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::{Rect, RoundedRect};
+    /// use ancorix_math::v2;
+    ///
+    /// let card = RoundedRect::new(v2!(0.0, 0.0), v2!(80.0, 40.0), 6.0);
+    ///
+    /// assert_eq!(card.bounds(), Rect::new(v2!(0.0, 0.0), v2!(80.0, 40.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn bounds(self) -> Rect {
+        Rect::new(self.pos, self.size)
     }
 
     /// Returns a new [`RoundedRect`] with the given center point, size, and
@@ -604,6 +669,29 @@ impl Line {
         }
     }
 
+    /// Returns the box the segment covers once drawn - the two ends, grown
+    /// by half the thickness, because that is what is on screen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::{Line, Rect};
+    /// use ancorix_math::v2;
+    ///
+    /// let rule = Line::new(v2!(0.0, 10.0), v2!(100.0, 10.0), 4.0);
+    ///
+    /// assert_eq!(rule.bounds(), Rect::new(v2!(-2.0, 8.0), v2!(104.0, 4.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn bounds(self) -> Rect {
+        let half = Vector2::splat(self.thickness * 0.5);
+        let min = self.from.min(self.to) - half;
+        let max = self.from.max(self.to) + half;
+
+        Rect::new(min, max - min)
+    }
+
     /// Returns `true` if `point` is within [`Line::thickness`] / 2 of the
     /// segment.
     ///
@@ -688,6 +776,27 @@ impl Triangle {
         }
     }
 
+    /// Returns the box the three corners span.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::{Rect, Triangle};
+    /// use ancorix_math::v2;
+    ///
+    /// let arrow = Triangle::new(v2!(0.0, 0.0), v2!(10.0, 0.0), v2!(5.0, 8.0));
+    ///
+    /// assert_eq!(arrow.bounds(), Rect::new(v2!(0.0, 0.0), v2!(10.0, 8.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn bounds(self) -> Rect {
+        let min = self.a.min(self.b).min(self.c);
+        let max = self.a.max(self.b).max(self.c);
+
+        Rect::new(min, max - min)
+    }
+
     /// Returns `true` if `point` is inside the triangle.
     ///
     /// Works regardless of the vertices' winding order. Doesn't account
@@ -745,10 +854,8 @@ impl Triangle {
     #[inline]
     #[must_use]
     pub fn contains_ex(self, point: Vector2, transform: Transform2D) -> bool {
-        let bounds_min = self.a.min(self.b).min(self.c);
-        let bounds_max = self.a.max(self.b).max(self.c);
-        let bounds_size = bounds_max - bounds_min;
-        self.contains(transform.invert(point, bounds_min, bounds_size))
+        let bounds = self.bounds();
+        self.contains(transform.invert(point, bounds.pos, bounds.size))
     }
 }
 
@@ -808,6 +915,25 @@ impl Sprite {
             size: self.size,
             source: self.source,
         }
+    }
+
+    /// Returns the box the sprite covers on screen. The part of the texture
+    /// it samples does not enter into it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_draw::{Rect, Sprite};
+    /// use ancorix_math::v2;
+    ///
+    /// let tile = Sprite::new(v2!(32.0, 0.0), v2!(16.0, 16.0));
+    ///
+    /// assert_eq!(tile.bounds(), Rect::new(v2!(32.0, 0.0), v2!(16.0, 16.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn bounds(self) -> Rect {
+        Rect::new(self.pos, self.size)
     }
 
     /// Returns the same sprite sampling only `source` - a sub-rectangle of
@@ -925,10 +1051,5 @@ impl Sprite {
     #[must_use]
     pub fn contains_ex(self, point: Vector2, transform: Transform2D) -> bool {
         self.bounds().contains_ex(point, transform)
-    }
-
-    #[inline(always)]
-    fn bounds(self) -> Rect {
-        Rect::new(self.pos, self.size)
     }
 }
