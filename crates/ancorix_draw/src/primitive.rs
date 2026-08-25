@@ -283,27 +283,6 @@ impl Rect {
         Rect::new(self.pos.const_add(delta), self.size)
     }
 
-    /// Returns the box the rectangle occupies, which is itself.
-    ///
-    /// Here so that every primitive answers the same question the same way -
-    /// see [`Circle::bounds()`] for what the answer is used for.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ancorix_draw::Rect;
-    /// use ancorix_math::v2;
-    ///
-    /// let rect = Rect::new(v2!(4.0, 8.0), v2!(20.0, 10.0));
-    ///
-    /// assert_eq!(rect.bounds(), rect);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub const fn bounds(self) -> Rect {
-        self
-    }
-
     /// Returns `true` if `point` is inside the rectangle.
     ///
     /// Doesn't account for any [`Transform2D`] the rectangle was drawn
