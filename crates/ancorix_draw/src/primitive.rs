@@ -354,7 +354,7 @@ pub struct Circle {
 impl Circle {
     /// Returns a new [`Circle`] with the given position and radius.
     #[inline(always)]
-    pub fn new(pos: Vector2, radius: f32) -> Self {
+    pub const fn new(pos: Vector2, radius: f32) -> Self {
         Self { pos, radius }
     }
 
@@ -617,7 +617,7 @@ pub struct Line {
 impl Line {
     /// Returns a new [`Line`] with the given start and end points.
     #[inline(always)]
-    pub fn new(from: Vector2, to: Vector2, thickness: f32) -> Self {
+    pub const fn new(from: Vector2, to: Vector2, thickness: f32) -> Self {
         Self {
             from,
             to,
@@ -729,7 +729,7 @@ pub struct Triangle {
 impl Triangle {
     /// Returns a new [`Triangle`] with the given vertices.
     #[inline(always)]
-    pub fn new(a: Vector2, b: Vector2, c: Vector2) -> Self {
+    pub const fn new(a: Vector2, b: Vector2, c: Vector2) -> Self {
         Self { a, b, c }
     }
 
