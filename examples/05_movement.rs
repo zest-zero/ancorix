@@ -14,7 +14,7 @@ impl App for Demo {
         ctx.input.bind_keys("down", &[Key::Down, Key::S]);
 
         Self {
-            pos: ctx.window.size() / 2.0,
+            pos: v2!(200.0),
             speed: 400.0,
             font: ctx.assets.builtin_font(2),
         }

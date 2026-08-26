@@ -34,7 +34,11 @@ impl WindowInfo {
         Self {
             width,
             height,
-            resized: false,
+            // true, so an app that rebuilds size-dependent state on
+            // `resized()` gets its first build without a special case for
+            // the first frame - and without `init` having to guess a size
+            // the compositor has not finished deciding
+            resized: true,
             monitor: MonitorInfo::new(1.0, Vector2::new(width as f32, height as f32)),
             exit_requested: false,
             exit_code: 0,
@@ -78,11 +82,11 @@ impl WindowInfo {
 
     /// Returns `true` if the window's size changed since the last frame.
     ///
-    /// A window manager can still resize the window after creation for its
-    /// own layout reasons (e.g. a tiling WM), independent of anything the
-    /// app requested. Layout that must track the window's live size (as
-    /// opposed to a one-time size read at [`App::init()`](crate::App::init) time)
-    /// should recompute it here.
+    /// True on the first frame as well, so this is the one place
+    /// size-dependent state is built: once at the start, and again whenever
+    /// the size changes. A window manager can resize the window after
+    /// creation for its own reasons (a tiling WM, a fractional-scale
+    /// surface settling), independent of anything the app asked for.
     ///
     /// # Examples
     ///
@@ -90,8 +94,9 @@ impl WindowInfo {
     /// use ancorix_ctx::WindowInfo;
     ///
     /// let mut window = WindowInfo::new(800, 600);
-    /// assert!(!window.resized());
+    /// assert!(window.resized()); // true on the first frame
     ///
+    /// window.begin_frame();
     /// window.resize(1024, 768);
     /// assert!(window.resized());
     ///

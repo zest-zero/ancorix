@@ -7,10 +7,8 @@ struct Demo {
 }
 
 impl App for Demo {
-    fn init(ctx: &mut Ctx) -> Self {
-        Self {
-            pos: ctx.window.size() / 2.0,
-        }
+    fn init(_ctx: &mut Ctx) -> Self {
+        Self { pos: v2!(200.0) }
     }
 
     fn frame(&mut self, ctx: &mut Ctx) {

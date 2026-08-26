@@ -10,7 +10,7 @@ struct Demo {
 impl App for Demo {
     fn init(ctx: &mut Ctx) -> Self {
         Self {
-            rect: Rect::from_center(ctx.window.size() / 2.0, v2!(100.0)),
+            rect: Rect::from_center(v2!(220.0), v2!(100.0)),
             drag: false,
             off: v2!(0.0),
             font: ctx.assets.builtin_font(2),

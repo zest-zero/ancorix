@@ -4,23 +4,23 @@ const STEP: f32 = 210.0;
 const SIZE: f32 = 124.0;
 const ROW: f32 = 115.0;
 
-struct Demo {
-    first: Vector2,
-}
+struct Demo;
 
 impl App for Demo {
-    fn init(ctx: &mut Ctx) -> Self {
-        let center = ctx.window.size() / 2.0;
-
-        Self {
-            first: v2!(center.x - STEP * 2.0, center.y),
-        }
+    fn init(_ctx: &mut Ctx) -> Self {
+        Self
     }
 
     fn frame(&mut self, ctx: &mut Ctx) {
+        // read in the frame, not kept from `init`: the window manager can
+        // resize the window whenever it likes, and a centre worked out once
+        // would be wrong from then on
+        let center = ctx.window.size() / 2.0;
+        let first = v2!(center.x - STEP * 2.0, center.y);
+
         let spin = Transform2D::rotated(ctx.time.elapsed());
-        let up = self.first - v2!(0.0, ROW);
-        let down = self.first + v2!(0.0, ROW);
+        let up = first - v2!(0.0, ROW);
+        let down = first + v2!(0.0, ROW);
 
         ctx.draw.clear(Rgba::WHITE);
 

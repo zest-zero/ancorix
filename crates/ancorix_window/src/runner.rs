@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use ancorix_ash::{
     Commands, Device, FRAMES_IN_FLIGHT, FrameSync, GpuTimer, Instance, Surface, Swapchain, Texture,
 };
-use ancorix_color::Rgba;
 use ancorix_ctx::App;
 use ancorix_ctx::{Ctx, Cursor, Time, WindowInfo};
 use ancorix_draw::Draw;
@@ -19,10 +18,6 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::{CursorIcon, Window as WinitWindow, WindowAttributes, WindowId};
 
 use crate::Window;
-
-// how often to re-check whether the window's real size has settled before
-// running `App::init` - see `Runner::ensure_app_initialized`/`about_to_wait`.
-const INIT_SETTLE_CHECK_INTERVAL: Duration = Duration::from_millis(50);
 
 pub(crate) struct Runner<A: App> {
     config: Window,
@@ -67,10 +62,6 @@ pub(crate) struct Runner<A: App> {
     last_tick: Instant,
     app: Option<A>,
 
-    // size seen the *previous* time `ensure_app_initialized` checked,
-    // while `app` is still `None` - see that method's doc comment.
-    init_size_checkpoint: Option<Vector2>,
-
     // last values applied to the real OS cursor, so `tick` only calls into
     // winit on an actual change, not every frame.
     applied_cursor_visible: bool,
@@ -98,7 +89,6 @@ impl<A: App> Runner<A> {
             draw: Draw::new(),
             last_tick: Instant::now(),
             app: None,
-            init_size_checkpoint: None,
             gpu_timer: None,
             textures: ancorix_asset::Assets::new(),
             #[cfg(feature = "unstable_shaders")]
@@ -377,46 +367,17 @@ impl<A: App> Runner<A> {
         self.window_info.exit_code()
     }
 
-    // Runs [`App::init`] once the window's size has stopped changing
-    // across consecutive checks - not called from `resumed()` itself, and
-    // not necessarily on the first call either.
+    // Runs [`App::init`] on the first frame, once the Vulkan stack exists.
     //
-    // On Wayland, a freshly created window's true geometry can still be
-    // renegotiated asynchronously after creation (e.g. a fractional-scale
-    // surface configure landing after the window already exists), so
-    // `window.inner_size()` queried synchronously in `resumed()` can be
-    // stale. `winit` gives no guarantee about how many `Resized` events
-    // (or how long) this settling takes - both rust-windowing/winit#3192
-    // and #2921 are open with no fix upstream - and `bevy` has the
-    // identical symptom for the same reason (bevyengine/bevy#17188).
-    //
-    // Three narrower fixes were tried and measured live before this one,
-    // each falsified by an actual repro rather than assumed correct:
-    // waiting for just the first `RedrawRequested` (the real size can
-    // land on the *second* one instead); comparing two checks made
-    // back-to-back under `ControlFlow::Poll` (the CPU spins through both
-    // before the platform's round-trip ever lands, so they agree on the
-    // stale value); and comparing checks spaced out by a real wall-clock
-    // pause but *without ever presenting a frame* in between - GNOME/
-    // Mutter turned out to only send the corrected configure once it
-    // sees an actual committed buffer from the client, so a pure wait
-    // deadlocks: nothing renders because the size hasn't settled, and the
-    // size never settles because nothing rendered. The caller
-    // (`window_event`'s `RedrawRequested` arm) presents an empty frame on
-    // every check while `app` is still `None`, which is what actually
-    // unblocks the compositor; this method only compares the resulting
-    // sizes across checks spaced apart by `about_to_wait`
-    // ([`INIT_SETTLE_CHECK_INTERVAL`]).
+    // Not in `resumed()`: on Wayland a freshly created window's geometry is
+    // still being renegotiated (fractional scale lands after the window
+    // exists - winit#2799, winit#2921, both open), so `inner_size()` there
+    // can be stale. Nothing waits for it to settle, because no windowing
+    // system promises a final size before the first frame: an app reads
+    // `ctx.window.size()` in `frame()`, and `WindowInfo::resized()` is true
+    // on that first frame so size-dependent setup has one place to happen.
     fn ensure_app_initialized(&mut self) {
         if self.app.is_some() {
-            return;
-        }
-
-        let current_size = self.window_info.size();
-        if self.init_size_checkpoint != Some(current_size) {
-            // not settled yet - `about_to_wait` schedules the next check
-            // after a real pause, not another immediate redraw.
-            self.init_size_checkpoint = Some(current_size);
             return;
         }
 
@@ -515,6 +476,7 @@ impl<A: App> ApplicationHandler for Runner<A> {
                 .create_window(attrs)
                 .expect("failed to create window"),
         );
+
         let window = self.window.as_ref().unwrap();
 
         let display_handle = event_loop
@@ -610,30 +572,9 @@ impl<A: App> ApplicationHandler for Runner<A> {
                 }
             }
             WindowEvent::RedrawRequested => {
-                if self.app.is_none() {
-                    // present a frame *before* checking stability: measured
-                    // live, some compositors (GNOME/Mutter included) only
-                    // finalize an async fractional-scale reconfigure once
-                    // they've seen the client actually commit a real buffer -
-                    // purely waiting without ever presenting anything never
-                    // observes the correction at all. See
-                    // `ensure_app_initialized`'s doc comment for the full
-                    // story (this was the second failed attempt at this fix).
-                    //
-                    // Clears to black, not left uncovered: the render pass's
-                    // `LOAD_OP_CLEAR` always clears to the loud debug-magenta
-                    // `UNCOVERED_COLOR` first (see `ancorix_ash::commands`) -
-                    // a deliberate "you forgot to call `ctx.draw.clear()`"
-                    // signal for a real frame. These priming frames aren't
-                    // that: `App::init()` hasn't run yet, so nothing *could*
-                    // have queued a clear. Queuing one here ourselves keeps
-                    // that signal meaningful (still fires if the app's own
-                    // `frame()` really does forget to clear) instead of
-                    // flashing magenta on every single startup.
-                    self.draw.clear(Rgba::BLACK);
-                    self.render();
-                    self.ensure_app_initialized();
-                } else if self.tick() {
+                self.ensure_app_initialized();
+
+                if self.tick() {
                     event_loop.exit();
                 } else {
                     self.render();
@@ -645,22 +586,6 @@ impl<A: App> ApplicationHandler for Runner<A> {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
-            return;
-        }
-
-        if self.app.is_none() {
-            // still waiting for the window's real size to settle (see
-            // `ensure_app_initialized`) - throttle to a real wall-clock
-            // interval rather than `ControlFlow::Poll`, which spins as
-            // fast as the CPU allows. Measured live: under `Poll`, two
-            // consecutive checks can both land *before* the platform's
-            // async configure round-trip (e.g. Wayland) ever completes,
-            // making them agree on the stale size and falsely declaring
-            // it settled. A real pause between checks gives that
-            // round-trip actual wall-clock time to land first.
-            event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + INIT_SETTLE_CHECK_INTERVAL,
-            ));
             return;
         }
 

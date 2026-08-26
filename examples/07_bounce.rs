@@ -17,7 +17,7 @@ impl App for Demo {
 
         Self {
             logo: ctx.assets.texture(bytes),
-            pos: ctx.window.size() / 2.0,
+            pos: v2!(240.0, 180.0),
             vel: v2!(SPEED, SPEED * 0.72),
             tint: 0,
         }
