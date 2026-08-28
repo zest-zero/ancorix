@@ -1281,9 +1281,11 @@ impl Vector2 {
 /// - `v2!(x, y)`: Creates a new vector with the specified `x` and `y` components.
 /// - `v2!(v)`: Creates a new vector where both `x` and `y` are set to the same value `v`.
 ///
-/// This helps reduce boilerplate code and makes vector creation more ergonomic.
+/// Numeric literals are cast to `f32`, so `v2!(100)` and `v2!(3, 4)` are accepted.
+/// Everything else must already be `f32`: `v2!(count)` where `count: i32` is a type
+/// error, not a silent conversion.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use ancorix_math::Vector2;
@@ -1298,20 +1300,71 @@ impl Vector2 {
 /// assert_eq!(v1, v2);
 /// ```
 ///
+/// Integer literals need no decimal point:
+///
+/// ```
+/// use ancorix_math::v2;
+///
+/// assert_eq!(v2!(100), v2!(100.0, 100.0));
+/// assert_eq!(v2!(3, -4), v2!(3.0, -4.0));
+/// ```
+///
 /// # See also
 ///
 /// * [`Vector2::new()`]
 /// * [`Vector2::splat()`]
 #[macro_export]
 macro_rules! v2 {
+    // Components are captured as `tt` rather than `literal`, and the sign is
+    // spelled out in the patterns, because a `literal` matcher that sees `-`
+    // commits to parsing a negative literal and hard-errors on the next token:
+    // `v2!(-half, y)` would not fall through to the `expr` arm, it would fail
+    // to compile. A single `tt` can never carry a leading `-`, so handing one
+    // to `__v2_f32!` is safe.
+
     // v2!(x, y)
+    ($x:tt, $y:tt $(,)?) => {
+        $crate::vector2::Vector2::new($crate::__v2_f32!($x), $crate::__v2_f32!($y))
+    };
+    (- $x:tt, $y:tt $(,)?) => {
+        $crate::vector2::Vector2::new(-$crate::__v2_f32!($x), $crate::__v2_f32!($y))
+    };
+    ($x:tt, - $y:tt $(,)?) => {
+        $crate::vector2::Vector2::new($crate::__v2_f32!($x), -$crate::__v2_f32!($y))
+    };
+    (- $x:tt, - $y:tt $(,)?) => {
+        $crate::vector2::Vector2::new(-$crate::__v2_f32!($x), -$crate::__v2_f32!($y))
+    };
     ($x:expr, $y:expr $(,)?) => {
         $crate::vector2::Vector2::new($x, $y)
     };
 
     // v2!(v)
+    (- $v:tt $(,)?) => {
+        $crate::vector2::Vector2::splat(-$crate::__v2_f32!($v))
+    };
+    ($v:tt $(,)?) => {
+        $crate::vector2::Vector2::splat($crate::__v2_f32!($v))
+    };
     ($v:expr $(,)?) => {
         $crate::vector2::Vector2::splat($v)
+    };
+}
+
+// Casts one component to f32 if - and only if - it is a literal. An `as` on an
+// arbitrary expression would silently truncate an i32 or narrow an f64 instead
+// of failing, so everything else is passed through and has to be f32 already.
+//
+// Exported because `v2!` is: its expansion says `$crate::__v2_f32!`, which has
+// to resolve in whatever crate wrote `v2!(...)`, not just in this one.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __v2_f32 {
+    ($v:literal) => {
+        $v as f32
+    };
+    ($v:expr) => {
+        $v
     };
 }
 
