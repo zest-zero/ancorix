@@ -6,10 +6,14 @@
 //! inside this crate's own source, wherever cargo happened to unpack it -
 //! which is exactly what [`include_path()`] returns.
 //!
+//! `-profile spirv_1_3` is not optional: slangc emits SPIR-V 1.5 by default,
+//! and the Vulkan 1.1 instance ancorix creates rejects anything newer than 1.3.
+//!
 //! ```no_run
 //! // build.rs of a project with shaders of its own
 //! let status = std::process::Command::new("slangc")
 //!     .arg("-target").arg("spirv")
+//!     .arg("-profile").arg("spirv_1_3")
 //!     .arg("-I").arg(ancorix_slang::include_path())
 //!     .arg("-entry").arg("pixel").arg("-stage").arg("fragment")
 //!     .arg("-o").arg("water.frag.spv")

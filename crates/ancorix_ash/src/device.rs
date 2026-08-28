@@ -33,16 +33,20 @@ impl Device {
             .queue_family_index(graphics_family)
             .queue_priorities(&priority);
 
+        let mut draw_parameters =
+            vk::PhysicalDeviceShaderDrawParametersFeatures::default().shader_draw_parameters(true);
+
         let create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(std::slice::from_ref(&queue_info))
-            .enabled_extension_names(REQUIRED_EXTENSIONS);
+            .enabled_extension_names(REQUIRED_EXTENSIONS)
+            .push_next(&mut draw_parameters);
 
         // SAFETY: `physical` was just enumerated from this same `instance`.
         let raw = unsafe {
             instance
                 .raw()
                 .create_device(physical, &create_info, None)
-                .expect("failed to create logical device")
+                .expect("failed to create logical device (shaderDrawParameters required)")
         };
 
         // SAFETY: `graphics_family` was returned by enumerating `physical`'s

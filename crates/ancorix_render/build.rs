@@ -109,10 +109,13 @@ fn compiler() -> Option<OsString> {
 
 fn compile(compiler: &OsString, source: &Path, lib: &Path, entry: &str, out: &Path) {
     // slangc optimizes by default, so there is no `-Os` equivalent to pass;
-    // `-I` is what makes `import ancorix` resolve.
+    // `-I` is what makes `import ancorix` resolve. Without the profile slangc
+    // emits SPIR-V 1.5, which a Vulkan 1.1 instance rejects.
     let output = Command::new(compiler)
         .arg("-target")
         .arg("spirv")
+        .arg("-profile")
+        .arg("spirv_1_3")
         .arg("-I")
         .arg(lib)
         .arg("-entry")

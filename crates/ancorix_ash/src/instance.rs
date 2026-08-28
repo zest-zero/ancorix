@@ -40,7 +40,7 @@ impl Instance {
         let app_info = vk::ApplicationInfo::default()
             .engine_name(c"Ancorix")
             .engine_version(vk::make_api_version(0, 0, 1, 0))
-            .api_version(vk::API_VERSION_1_3);
+            .api_version(vk::API_VERSION_1_1);
 
         let create_info = vk::InstanceCreateInfo::default()
             .application_info(&app_info)
