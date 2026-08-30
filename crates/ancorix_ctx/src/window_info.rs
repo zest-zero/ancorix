@@ -12,6 +12,7 @@ pub struct WindowInfo {
     exit_code: u8,
     cursor_visible: bool,
     cursor: Cursor,
+    resizable: bool,
 }
 
 impl WindowInfo {
@@ -44,6 +45,7 @@ impl WindowInfo {
             exit_code: 0,
             cursor_visible: true,
             cursor: Cursor::Default,
+            resizable: false,
         }
     }
 
@@ -138,6 +140,51 @@ impl WindowInfo {
     #[inline]
     pub const fn set_monitor(&mut self, monitor: MonitorInfo) {
         self.monitor = monitor;
+    }
+
+    /// Returns whether the user can currently resize the window.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_ctx::WindowInfo;
+    ///
+    /// let mut window = WindowInfo::new(800, 600);
+    /// window.set_resizable(true);
+    ///
+    /// assert!(window.resizable());
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`WindowInfo::set_resizable`]
+    #[inline]
+    pub const fn resizable(&self) -> bool {
+        self.resizable
+    }
+
+    /// Lets the user resize the window, or stops them.
+    ///
+    /// Takes effect on the next frame. A tiling window manager may resize the
+    /// window regardless of what it is told.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ancorix_ctx::WindowInfo;
+    ///
+    /// let mut window = WindowInfo::new(800, 600);
+    /// window.set_resizable(false);
+    ///
+    /// assert!(!window.resizable());
+    /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`WindowInfo::resizable`]
+    #[inline]
+    pub const fn set_resizable(&mut self, resizable: bool) {
+        self.resizable = resizable;
     }
 
     /// Returns whether the OS cursor should currently be visible over the

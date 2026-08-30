@@ -66,11 +66,16 @@ pub(crate) struct Runner<A: App> {
     // winit on an actual change, not every frame.
     applied_cursor_visible: bool,
     applied_cursor: Cursor,
+    applied_resizable: bool,
 }
 
 impl<A: App> Runner<A> {
     pub(crate) fn new(config: Window) -> Self {
-        let window_info = WindowInfo::new(config.width, config.height);
+        let mut window_info = WindowInfo::new(config.width, config.height);
+        window_info.set_resizable(config.resizable);
+
+        let resizable = config.resizable;
+
         Self {
             config,
             sync: Vec::new(),
@@ -95,6 +100,7 @@ impl<A: App> Runner<A> {
             shaders: ancorix_asset::Assets::new(),
             applied_cursor_visible: true,
             applied_cursor: Cursor::Default,
+            applied_resizable: resizable,
         }
     }
 
@@ -203,6 +209,14 @@ impl<A: App> Runner<A> {
             self.applied_cursor = cursor;
             if let Some(window) = &self.window {
                 window.set_cursor(cursor_icon(cursor));
+            }
+        }
+
+        let resizable = self.window_info.resizable();
+        if resizable != self.applied_resizable {
+            self.applied_resizable = resizable;
+            if let Some(window) = &self.window {
+                window.set_resizable(resizable);
             }
         }
 
@@ -497,6 +511,7 @@ impl<A: App> ApplicationHandler for Runner<A> {
             _ => window.inner_size(),
         };
         self.window_info = WindowInfo::new(size.width, size.height);
+        self.window_info.set_resizable(self.config.resizable);
         if let Some(handle) = window.current_monitor().or_else(|| monitor.clone()) {
             self.window_info.set_monitor(monitor_info(&handle));
         }
