@@ -19,8 +19,8 @@ pub struct Ctx<'a> {
     /// Timing information for this frame.
     pub time: Time,
 
-    /// Window size and close control.
-    pub window: WindowInfo,
+    /// Window state, and the settings that change the real window.
+    pub window: &'a mut WindowInfo,
 
     /// Immediate-mode draw command queue for this frame.
     pub draw: &'a mut Draw,
@@ -45,7 +45,7 @@ impl<'a> Ctx<'a> {
     pub fn new(
         input: &'a mut Input,
         time: Time,
-        window: WindowInfo,
+        window: &'a mut WindowInfo,
         draw: &'a mut Draw,
         instance: &'a ancorix_ash::Instance,
         device: &'a ancorix_ash::Device,

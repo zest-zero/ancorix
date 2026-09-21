@@ -4,7 +4,7 @@
 //! isn't here: it arrives already borrowed.
 
 pub use crate::{
-    App, Binding, Circle, Ctx, Cursor, Font, Handle, Interpolated, Key, KeyEvent, Line,
+    App, Binding, Circle, Ctx, Cursor, CursorGrab, Font, Handle, Interpolated, Key, KeyEvent, Line,
     MouseButton, Rect, Rgba, RoundedRect, Sprite, SpriteSheet, TextField, Texture, TextureFilter,
     Transform2D, Triangle, Vector2, Window, rgba, v2,
 };

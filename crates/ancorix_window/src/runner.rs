@@ -5,7 +5,7 @@ use ancorix_ash::{
     Commands, Device, FRAMES_IN_FLIGHT, FrameSync, GpuTimer, Instance, Surface, Swapchain, Texture,
 };
 use ancorix_ctx::App;
-use ancorix_ctx::{Ctx, Cursor, Time, WindowInfo};
+use ancorix_ctx::{Ctx, Time, WindowInfo};
 use ancorix_draw::Draw;
 use ancorix_input::Input;
 use ancorix_math::Vector2;
@@ -15,9 +15,10 @@ use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::window::{CursorIcon, Window as WinitWindow, WindowAttributes, WindowId};
+use winit::window::{Window as WinitWindow, WindowAttributes, WindowId};
 
 use crate::Window;
+use crate::apply::Applied;
 
 pub(crate) struct Runner<A: App> {
     config: Window,
@@ -62,19 +63,14 @@ pub(crate) struct Runner<A: App> {
     last_tick: Instant,
     app: Option<A>,
 
-    // last values applied to the real OS cursor, so `tick` only calls into
-    // winit on an actual change, not every frame.
-    applied_cursor_visible: bool,
-    applied_cursor: Cursor,
-    applied_resizable: bool,
+    // what the real window was last told - see `Applied`
+    applied: Applied,
 }
 
 impl<A: App> Runner<A> {
     pub(crate) fn new(config: Window) -> Self {
-        let mut window_info = WindowInfo::new(config.width, config.height);
-        window_info.set_resizable(config.resizable);
-
-        let resizable = config.resizable;
+        let window_info = seeded(&config, config.width, config.height);
+        let applied = Applied::of(&window_info);
 
         Self {
             config,
@@ -98,9 +94,7 @@ impl<A: App> Runner<A> {
             textures: ancorix_asset::Assets::new(),
             #[cfg(feature = "unstable_shaders")]
             shaders: ancorix_asset::Assets::new(),
-            applied_cursor_visible: true,
-            applied_cursor: Cursor::Default,
-            applied_resizable: resizable,
+            applied,
         }
     }
 
@@ -182,7 +176,7 @@ impl<A: App> Runner<A> {
         let mut ctx = Ctx::new(
             &mut self.input,
             self.time,
-            self.window_info,
+            &mut self.window_info,
             &mut self.draw,
             self.instance.as_ref().unwrap(),
             self.device.as_ref().unwrap(),
@@ -194,30 +188,11 @@ impl<A: App> Runner<A> {
             app.frame(&mut ctx);
         }
         self.time = ctx.time;
-        self.window_info = ctx.window;
 
-        let cursor_visible = self.window_info.cursor_visible();
-        if cursor_visible != self.applied_cursor_visible {
-            self.applied_cursor_visible = cursor_visible;
-            if let Some(window) = &self.window {
-                window.set_cursor_visible(cursor_visible);
-            }
-        }
-
-        let cursor = self.window_info.cursor();
-        if cursor != self.applied_cursor {
-            self.applied_cursor = cursor;
-            if let Some(window) = &self.window {
-                window.set_cursor(cursor_icon(cursor));
-            }
-        }
-
-        let resizable = self.window_info.resizable();
-        if resizable != self.applied_resizable {
-            self.applied_resizable = resizable;
-            if let Some(window) = &self.window {
-                window.set_resizable(resizable);
-            }
+        if let Some(window) = &self.window
+            && self.applied.apply(&self.window_info, window)
+        {
+            self.recreate_swapchain();
         }
 
         self.input.begin_frame();
@@ -366,7 +341,7 @@ impl<A: App> Runner<A> {
             surface,
             size.width,
             size.height,
-            self.config.vsync,
+            self.window_info.vsync(),
         );
         let commands = Commands::new(device, renderer.render_pass(), &swapchain);
 
@@ -399,7 +374,7 @@ impl<A: App> Runner<A> {
         let mut ctx = Ctx::new(
             &mut self.input,
             self.time,
-            self.window_info,
+            &mut self.window_info,
             &mut self.draw,
             self.instance.as_ref().unwrap(),
             self.device.as_ref().unwrap(),
@@ -409,7 +384,6 @@ impl<A: App> Runner<A> {
         );
         self.app = Some(A::init(&mut ctx));
         self.time = ctx.time;
-        self.window_info = ctx.window;
     }
 }
 
@@ -510,11 +484,11 @@ impl<A: App> ApplicationHandler for Runner<A> {
             (true, Some(monitor)) => monitor.size(),
             _ => window.inner_size(),
         };
-        self.window_info = WindowInfo::new(size.width, size.height);
-        self.window_info.set_resizable(self.config.resizable);
+        self.window_info = seeded(&self.config, size.width, size.height);
         if let Some(handle) = window.current_monitor().or_else(|| monitor.clone()) {
             self.window_info.set_monitor(monitor_info(&handle));
         }
+        self.applied = Applied::of(&self.window_info);
         let swapchain = Swapchain::new(
             &instance,
             &device,
@@ -575,7 +549,15 @@ impl<A: App> ApplicationHandler for Runner<A> {
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => self.window_info.resize(size.width, size.height),
+            WindowEvent::Resized(size) => {
+                self.window_info.resize(size.width, size.height);
+                // maximizing and fullscreen are also the window manager's to
+                // change, and a resize is how that shows
+                if let Some(window) = &self.window {
+                    self.applied.follow(&mut self.window_info, window);
+                }
+            }
+            WindowEvent::Focused(focused) => self.window_info.set_focused(focused),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 // the window may have moved to a monitor with a different
                 // DPI - `current_monitor()` is queried fresh rather than
@@ -604,7 +586,7 @@ impl<A: App> ApplicationHandler for Runner<A> {
             return;
         }
 
-        match self.config.target_fps {
+        match self.window_info.target_fps() {
             Some(fps) => {
                 let frame_time = Duration::from_secs_f64(1.0 / fps as f64);
                 event_loop.set_control_flow(ControlFlow::WaitUntil(self.last_tick + frame_time));
@@ -614,27 +596,14 @@ impl<A: App> ApplicationHandler for Runner<A> {
     }
 }
 
-// The `Cursor` -> winit map. Here rather than in `ancorix_winit` because that
-// crate's one job is feeding events into `ancorix_input`; applying window
-// settings is what the runner already does for size, fullscreen and cursor
-// visibility.
-fn cursor_icon(cursor: Cursor) -> CursorIcon {
-    match cursor {
-        Cursor::Default => CursorIcon::Default,
-        Cursor::Text => CursorIcon::Text,
-        Cursor::Pointer => CursorIcon::Pointer,
-        Cursor::Crosshair => CursorIcon::Crosshair,
-        Cursor::Move => CursorIcon::Move,
-        Cursor::Grab => CursorIcon::Grab,
-        Cursor::Grabbing => CursorIcon::Grabbing,
-        Cursor::NotAllowed => CursorIcon::NotAllowed,
-        Cursor::Progress => CursorIcon::Progress,
-        Cursor::Wait => CursorIcon::Wait,
-        Cursor::ResizeHorizontal => CursorIcon::EwResize,
-        Cursor::ResizeVertical => CursorIcon::NsResize,
-        Cursor::ResizeDiagonalUp => CursorIcon::NeswResize,
-        Cursor::ResizeDiagonalDown => CursorIcon::NwseResize,
-        Cursor::ResizeColumn => CursorIcon::ColResize,
-        Cursor::ResizeRow => CursorIcon::RowResize,
-    }
+// A `WindowInfo` describing the window `config` asks for, at the size it
+// actually came out.
+fn seeded(config: &Window, width: u32, height: u32) -> WindowInfo {
+    let mut info = WindowInfo::new(width, height);
+    info.set_title(&config.title);
+    info.set_resizable(config.resizable);
+    info.set_fullscreen(config.fullscreen);
+    info.set_vsync(config.vsync);
+    info.set_target_fps(config.target_fps);
+    info
 }
